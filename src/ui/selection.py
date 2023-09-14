@@ -18,7 +18,7 @@ change_selection_button.hide()
 
 card = Card(
     title="2️⃣ Selection",
-    description="PLACEHOLDER: Input description here.",
+    description="Select projects to copy from CVAT to Supervisely.",
     content=Container([projects_transfer, select_projects_button]),
     content_top_right=change_selection_button,
     collapsable=True,
@@ -65,6 +65,8 @@ def select_projects():
 
     copying.card.unlock()
     copying.card.uncollapse()
+
+    copying.build_projects_table()
 
     change_selection_button.show()
 

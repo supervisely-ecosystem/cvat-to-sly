@@ -12,7 +12,10 @@ CONFIGURATION = Configuration(
 )
 
 # Entity of CVAT data: project or task.
-CVATData = namedtuple("CVATData", ["entity", "id", "name", "status"])
+CVATData = namedtuple(
+    "CVATData",
+    ["entity", "id", "name", "status", "owner_username", "labels_count", "url"],
+)
 
 # Exporter or importer format from CVAT API.
 CVATFormat = namedtuple(
@@ -70,11 +73,26 @@ def cvat_data(**kwargs) -> Generator[CVATData, None, None]:
         return
 
     for result in results:
+        try:
+            owner_username = results.get("owner").get("username")
+        except AttributeError:
+            owner_username = None
+        try:
+            labels_count = results.get("labels").get("count")
+        except AttributeError:
+            labels_count = None
+
+        url = result.get("url")
+        url = url.replace("/api/", "/") if url else None
+
         yield CVATData(
             entity=entity,
             id=result.get("id"),
             name=result.get("name"),
             status=result.get("status"),
+            owner_username=owner_username,
+            labels_count=labels_count,
+            url=url,
         )
 
 
