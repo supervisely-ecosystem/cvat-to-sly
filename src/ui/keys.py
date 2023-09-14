@@ -33,7 +33,7 @@ cvat_password_field = Field(
 
 connect_button = Button("Connect to CVAT")
 connect_button.disable()
-change_connection_button = Button("Change connection settings")
+change_connection_button = Button("Change settings")
 change_connection_button.hide()
 
 load_from_env_text = Text(
@@ -83,6 +83,7 @@ def connected():
     )
 
     connection_status_text.show()
+    selection.fill_transfer_with_projects()
 
 
 @change_connection_button.click

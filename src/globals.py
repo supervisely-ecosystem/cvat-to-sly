@@ -27,6 +27,8 @@ class State:
         self.cvat_username = None
         self.cvat_password = None
 
+        self.selected_projects = None
+
     def clear_cvat_credentials(self):
         sly.logger.debug("Clearing CVAT credentials...")
         self.cvat_server_address = None
