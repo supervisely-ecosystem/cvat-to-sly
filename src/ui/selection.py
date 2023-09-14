@@ -1,13 +1,20 @@
-from supervisely.app.widgets import Text, Card
+from supervisely.app.widgets import Card, Transfer, Button, Container, Progress
 
-example_text = Text("This is a widget for settings.", "info")
+projects_transfer = Transfer(
+    filterable=True,
+    filter_placeholder="Input project name",
+    titles=["Available projects", "Project to copy"],
+)
 
+select_projects_button = Button("Select projects")
+change_selection_button = Button("Change selection")
+change_selection_button.hide()
 
 card = Card(
     title="2️⃣ Selection",
     description="PLACEHOLDER: Input description here.",
-    content=example_text,
-    lock_message="Select the dataset on step 1️⃣.",
+    content="",  # ! ADD CONTENT HERE
+    lock_message="Connect to the CVAT server on step 1️⃣",
     collapsable=True,
 )
 card.lock()

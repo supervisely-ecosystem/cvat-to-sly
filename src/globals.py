@@ -50,6 +50,7 @@ sly.logger.debug(f"Path to the TeamFiles from environment: {CVAT_ENV_TEAMFILES}"
 
 if CVAT_ENV_TEAMFILES:
     sly.logger.debug(".env file is provided, will try to download it.")
+    # ! UNCOMMENT IN PRODUCTION !
     # api.file.download(STATE.selected_team, CVAT_ENV_TEAMFILES, CVAT_ENV_FILE)
 
     sly.logger.debug(".env file downloaded successfully. Will read the credentials.")
