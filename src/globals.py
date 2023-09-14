@@ -14,9 +14,9 @@ api: sly.Api = sly.Api.from_env()
 SLY_APP_DATA_DIR = sly.app.get_data_dir()
 sly.logger.debug(f"SLY_APP_DATA_DIR: {SLY_APP_DATA_DIR}")
 
-STATIC_DIR = os.path.join(SLY_APP_DATA_DIR, "static")
-sly.fs.mkdir(STATIC_DIR)
-sly.logger.debug(f"STATIC_DIR: {STATIC_DIR}")
+TEMP_DIR = os.path.join(SLY_APP_DATA_DIR, "temp")
+sly.fs.mkdir(TEMP_DIR, remove_content_if_exists=True)
+sly.logger.debug(f"TEMP_DIR: {TEMP_DIR}")
 
 
 class State:
@@ -24,17 +24,38 @@ class State:
         self.selected_team = sly.io.env.team_id()
         self.selected_workspace = sly.io.env.workspace_id()
 
+        self.loaded_from_env = False
+
         self.cvat_server_address = None
         self.cvat_username = None
         self.cvat_password = None
 
+        self.project_names = dict()
         self.selected_projects = None
+
+        self.continue_copying = True
 
     def clear_cvat_credentials(self):
         sly.logger.debug("Clearing CVAT credentials...")
         self.cvat_server_address = None
         self.cvat_username = None
         self.cvat_password = None
+
+    def load_from_env(self):
+        api.file.download(STATE.selected_team, CVAT_ENV_TEAMFILES, CVAT_ENV_FILE)
+        sly.logger.debug(
+            ".env file downloaded successfully. Will read the credentials."
+        )
+        load_dotenv(CVAT_ENV_FILE)
+        self.cvat_server_address = os.getenv("CVAT_SERVER_ADDRESS")
+        self.cvat_username = os.getenv("CVAT_USERNAME")
+        self.cvat_password = os.getenv("CVAT_PASSWORD")
+        sly.logger.debug(
+            "CVAT credentials readed successfully. "
+            f"Server address: {STATE.cvat_server_address}, username: {STATE.cvat_username}. "
+            "Will check the connection."
+        )
+        self.loaded_from_env = True
 
 
 STATE = State()
@@ -56,42 +77,4 @@ COPYING_STATUS = CopyingStatus("✅", "❌", "⏳", "🔄")
 
 if CVAT_ENV_TEAMFILES:
     sly.logger.debug(".env file is provided, will try to download it.")
-    # ! UNCOMMENT IN PRODUCTION !
-    # api.file.download(STATE.selected_team, CVAT_ENV_TEAMFILES, CVAT_ENV_FILE)
-
-    sly.logger.debug(".env file downloaded successfully. Will read the credentials.")
-
-    load_dotenv(CVAT_ENV_FILE)
-    STATE.cvat_server_address = os.getenv("CVAT_SERVER_ADDRESS")
-    STATE.cvat_username = os.getenv("CVAT_USERNAME")
-    STATE.cvat_password = os.getenv("CVAT_PASSWORD")
-
-    sly.logger.debug(
-        "CVAT credentials readed successfully. "
-        f"Server address: {STATE.cvat_server_address}, username: {STATE.cvat_username}. "
-        "Will check the connection."
-    )
-
-    import src.cvat as cvat
-    import src.ui.keys as keys
-
-    keys.cvat_server_address_input.set_value(STATE.cvat_server_address)
-    keys.cvat_username_input.set_value(STATE.cvat_username)
-    keys.cvat_password_input.set_value(STATE.cvat_password)
-    keys.connect_button.enable()
-
-    connection_status = cvat.check_connection()
-
-    if connection_status:
-        sly.logger.info(
-            f"Connection to CVAT server {STATE.cvat_server_address} was successful."
-        )
-
-        keys.connected()
-
-    else:
-        sly.logger.warning(
-            f"Connection to CVAT server {STATE.cvat_server_address} failed."
-        )
-
-        keys.disconnected(with_error=True)
+    STATE.load_from_env()

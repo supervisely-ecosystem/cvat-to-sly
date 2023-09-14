@@ -32,6 +32,7 @@ def fill_transfer_with_projects():
     transfer_items = []
 
     for project in cvat.cvat_data():
+        g.STATE.project_names[project.id] = project.name
         transfer_items.append(
             Transfer.Item(key=project.id, label=f"[{project.id}] {project.name}")
         )
@@ -57,16 +58,14 @@ def select_projects():
     sly.logger.debug(
         f"Select projects button clicked, selected projects: {project_ids}. Will save them to the global state."
     )
-
     g.STATE.selected_projects = project_ids
+
+    copying.build_projects_table()
 
     card.lock()
     card.collapse()
-
     copying.card.unlock()
     copying.card.uncollapse()
-
-    copying.build_projects_table()
 
     change_selection_button.show()
 
@@ -78,6 +77,7 @@ def change_selection():
         "And reset selected projects in the global state."
     )
 
+    g.STATE.project_names = dict()
     g.STATE.selected_projects = None
 
     card.unlock()

@@ -2,8 +2,11 @@ from typing import Dict, Generator, List
 from collections import namedtuple
 import supervisely as sly
 from cvat_sdk.api_client import Configuration, ApiClient, exceptions
+from rich.console import Console
 
 import src.globals as g
+
+console = Console()
 
 CONFIGURATION = Configuration(
     host=g.STATE.cvat_server_address,
@@ -100,7 +103,7 @@ def retreive_dataset(task_id):
     with ApiClient(CONFIGURATION) as api_client:
         try:
             (data, response) = api_client.tasks_api.retrieve_dataset(
-                format="COCO 1.0",
+                format="CVAT for images 1.1",
                 id=task_id,
                 action="download",
             )
@@ -162,3 +165,9 @@ def retreive_formats() -> Dict[str, List[CVATFormat]]:
         )
 
     return formats
+
+
+exporters = retreive_formats().get("exporters")
+sly.logger.debug(f"Retreived {len(exporters)} exporters from CVAT API.")
+cvat_formats = [exporter for exporter in exporters if "CVAT" in exporter.name]
+console.print(f"ℹ️ CVAT custom exporters: {cvat_formats}")

@@ -86,7 +86,6 @@ def connected():
     selection.fill_transfer_with_projects()
 
 
-@change_connection_button.click
 def disconnected(with_error=False):
     sly.logger.debug(
         f"Status changed to disconnected with error: {with_error}, will change widget states."
@@ -170,4 +169,29 @@ def try_to_connect():
     if connection_status:
         connected()
     else:
+        disconnected(with_error=True)
+
+
+if g.STATE.loaded_from_env:
+    sly.logger.debug('The application was started with the "Load from .env" option.')
+
+    cvat_server_address_input.set_value(g.STATE.cvat_server_address)
+    cvat_username_input.set_value(g.STATE.cvat_username)
+    cvat_password_input.set_value(g.STATE.cvat_password)
+    connect_button.enable()
+
+    connection_status = cvat.check_connection()
+
+    if connection_status:
+        sly.logger.info(
+            f"Connection to CVAT server {g.STATE.cvat_server_address} was successful."
+        )
+
+        connected()
+
+    else:
+        sly.logger.warning(
+            f"Connection to CVAT server {g.STATE.cvat_server_address} failed."
+        )
+
         disconnected(with_error=True)
