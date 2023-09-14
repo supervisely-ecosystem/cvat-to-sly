@@ -9,35 +9,82 @@ if sly.is_development():
     load_dotenv("local.env")
     load_dotenv(os.path.expanduser("~/supervisely.env"))
 
-
-# * Creating an instance of the supervisely API according to the environment variables.
 api: sly.Api = sly.Api.from_env()
-
-
-# * This variable requires SLY_APP_DATA_DIR in local.env file.
 SLY_APP_DATA_DIR = sly.app.get_data_dir()
+sly.logger.debug(f"SLY_APP_DATA_DIR: {SLY_APP_DATA_DIR}")
 
-
-# * If the app needed static dir (showing local path in web UI), it should be created here.
-# * If not needed, this code can be securely removed.
 STATIC_DIR = os.path.join(SLY_APP_DATA_DIR, "static")
+sly.fs.mkdir(STATIC_DIR)
+sly.logger.debug(f"STATIC_DIR: {STATIC_DIR}")
 
 
-# * To avoid global variables in different modules, it's better to use g.STATE (g.AppState) object
-# * across the app. It can be accessed from any module by importing globals module.
 class State:
     def __init__(self):
-        # * This class should contain all the variables that are used across the app.
-        # * For example selected team, workspace, project, dataset, etc.
         self.selected_team = sly.io.env.team_id()
         self.selected_workspace = sly.io.env.workspace_id()
-        self.selected_project = sly.io.env.project_id(raise_not_found=False)
-        self.selected_dataset = sly.io.env.dataset_id(raise_not_found=False)
 
-        self.continue_working = True
+        self.cvat_server_address = None
+        self.cvat_username = None
+        self.cvat_password = None
+
+    def clear_cvat_credentials(self):
+        sly.logger.debug("Clearing CVAT credentials...")
+        self.cvat_server_address = None
+        self.cvat_username = None
+        self.cvat_password = None
 
 
-# * Class object to access from other modules.
-# * import src.globals as g
-# * selected_team = g.STATE.selected_team
 STATE = State()
+sly.logger.debug(
+    f"Selected team: {STATE.selected_team}, selected workspace: {STATE.selected_workspace}"
+)
+
+ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(ABSOLUTE_PATH)
+sly.logger.debug(f"Absolute path: {ABSOLUTE_PATH}, parent dir: {PARENT_DIR}")
+
+CVAT_ENV_FILE = os.path.join(PARENT_DIR, "cvat.env")
+sly.logger.debug(f"Path to the local cvat.env file: {CVAT_ENV_FILE}")
+CVAT_ENV_TEAMFILES = sly.env.file(raise_not_found=False)
+sly.logger.debug(f"Path to the TeamFiles from environment: {CVAT_ENV_TEAMFILES}")
+
+if CVAT_ENV_TEAMFILES:
+    sly.logger.debug(".env file is provided, will try to download it.")
+    # api.file.download(STATE.selected_team, CVAT_ENV_TEAMFILES, CVAT_ENV_FILE)
+
+    sly.logger.debug(".env file downloaded successfully. Will read the credentials.")
+
+    load_dotenv(CVAT_ENV_FILE)
+    STATE.cvat_server_address = os.getenv("CVAT_SERVER_ADDRESS")
+    STATE.cvat_username = os.getenv("CVAT_USERNAME")
+    STATE.cvat_password = os.getenv("CVAT_PASSWORD")
+
+    sly.logger.debug(
+        "CVAT credentials readed successfully. "
+        f"Server address: {STATE.cvat_server_address}, username: {STATE.cvat_username}. "
+        "Will check the connection."
+    )
+
+    import src.cvat as cvat
+    import src.ui.keys as keys
+
+    keys.cvat_server_address_input.set_value(STATE.cvat_server_address)
+    keys.cvat_username_input.set_value(STATE.cvat_username)
+    keys.cvat_password_input.set_value(STATE.cvat_password)
+    keys.connect_button.enable()
+
+    connection_status = cvat.check_connection()
+
+    if connection_status:
+        sly.logger.info(
+            f"Connection to CVAT server {STATE.cvat_server_address} was successful."
+        )
+
+        keys.connected()
+
+    else:
+        sly.logger.warning(
+            f"Connection to CVAT server {STATE.cvat_server_address} failed."
+        )
+
+        keys.disconnected(with_error=True)
