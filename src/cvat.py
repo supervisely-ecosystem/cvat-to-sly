@@ -1,4 +1,4 @@
-from typing import Dict, Any, Generator
+from typing import Dict, Generator, List
 from collections import namedtuple
 import supervisely as sly
 from cvat_sdk.api_client import Configuration, ApiClient, exceptions
@@ -11,8 +11,13 @@ CONFIGURATION = Configuration(
     password=g.STATE.cvat_password,
 )
 
-
+# Entity of CVAT data: project or task.
 CVATData = namedtuple("CVATData", ["entity", "id", "name", "status"])
+
+# Exporter or importer format from CVAT API.
+CVATFormat = namedtuple(
+    "CVATFormat", ["dimension", "enabled", "ext", "name", "version"]
+)
 
 
 def check_connection() -> bool:
@@ -88,7 +93,19 @@ def retreive_dataset(task_id):
     return data
 
 
-def retreive_formats() -> Dict[str, Any]:
+def retreive_formats() -> Dict[str, List[CVATFormat]]:
+    """Retreive all available formats from CVAT API (exporters and importers).
+
+    CVATFormat is a namedtuple with the following fields:
+        - dimension: str
+        - enabled: bool
+        - ext: str
+        - name: str
+        - version: str
+
+    :return: dictionary with exporters and importers keys and lists of CVATFormat objects as values
+    :rtype: Dict[str, List[CVATFormat]]
+    """
     with ApiClient(CONFIGURATION) as api_client:
         try:
             (data, response) = api_client.server_api.retrieve_annotation_formats()
@@ -96,4 +113,34 @@ def retreive_formats() -> Dict[str, Any]:
             sly.logger.error(f"Exception when calling CVAT API projects_api.list: {e}")
             return
 
-    return data
+    exporters = data.get("exporters")
+    importers = data.get("importers")
+
+    formats = {
+        "exporters": [],
+        "importers": [],
+    }
+
+    for exporter in exporters:
+        formats["exporters"].append(
+            CVATFormat(
+                dimension=exporter.get("dimension"),
+                enabled=exporter.get("enabled"),
+                ext=exporter.get("ext"),
+                name=exporter.get("name"),
+                version=exporter.get("version"),
+            )
+        )
+
+    for importer in importers:
+        formats["importers"].append(
+            CVATFormat(
+                dimension=importer.get("dimension"),
+                enabled=importer.get("enabled"),
+                ext=importer.get("ext"),
+                name=importer.get("name"),
+                version=importer.get("version"),
+            )
+        )
+
+    return formats

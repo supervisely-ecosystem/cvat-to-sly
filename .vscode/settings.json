@@ -13,5 +13,6 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "python.formatting.provider": "black",
+  "autoDocstring.docstringFormat": "sphinx",
   "debug.inlineValues": "off",
 }
