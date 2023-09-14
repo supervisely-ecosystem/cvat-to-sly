@@ -74,11 +74,11 @@ def cvat_data(**kwargs) -> Generator[CVATData, None, None]:
 
     for result in results:
         try:
-            owner_username = results.get("owner").get("username")
+            owner_username = result.get("owner").get("username")
         except AttributeError:
             owner_username = None
         try:
-            labels_count = results.get("labels").get("count")
+            labels_count = result.get("labels").get("count")
         except AttributeError:
             labels_count = None
 

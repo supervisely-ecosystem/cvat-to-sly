@@ -3,16 +3,9 @@ from supervisely.app.widgets import Container, Card, Table, Button, Progress, Te
 import src.globals as g
 import src.cvat as cvat
 
-COLUMNS = [
-    "ID",
-    "NAME",
-    "STATUS",
-    "OWNER",
-    "LABELS",
-    "URL",
-]
+COLUMNS = ["COPIED", "ID", "NAME", "STATUS", "OWNER", "LABELS", "URL"]
 
-projects_table = Table(fixed_cols=2, per_page=20)
+projects_table = Table(fixed_cols=3, per_page=20, sort_column_id=1)
 projects_table.hide()
 
 copy_button = Button("Copy", icon="zmdi zmdi-copy")
@@ -42,6 +35,7 @@ def build_projects_table():
         if project.id in g.STATE.selected_projects:
             rows.append(
                 [
+                    g.COPYING_STATUS.pending,
                     project.id,
                     project.name,
                     project.status,
