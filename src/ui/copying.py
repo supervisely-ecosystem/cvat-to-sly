@@ -30,13 +30,17 @@ stop_button = Button("Stop", icon="zmdi zmdi-stop", button_type="danger")
 stop_button.hide()
 
 copying_progress = Progress()
-copying_results = Text()
-copying_results.hide()
+good_results = Text(status="success")
+bad_results = Text(status="error")
+good_results.hide()
+bad_results.hide()
 
 card = Card(
     title="3️⃣ Copying",
     description="Copy selected projects from CVAT to Supervisely.",
-    content=Container([projects_table, copy_button, copying_progress, copying_results]),
+    content=Container(
+        [projects_table, copy_button, copying_progress, good_results, bad_results]
+    ),
     content_top_right=stop_button,
     collapsable=True,
 )
@@ -128,53 +132,96 @@ def start_copying():
             sly.logger.debug(f"Archive for task {task_id} was downloaded correctly.")
             return True
 
-    # TODO: Add progress bar for copying.
-    for project_id in g.STATE.selected_projects:
-        sly.logger.debug(f"Copying project with id: {project_id}")
-        update_cells(project_id, new_status=g.COPYING_STATUS.working)
+    succesfully_uploaded = 0
+    uploded_with_errors = 0
 
-        task_ids_with_errors = []
-        task_archive_paths = []
+    with copying_progress(
+        total=len(g.STATE.selected_projects), message="Copying..."
+    ) as pbar:
+        for project_id in g.STATE.selected_projects:
+            sly.logger.debug(f"Copying project with id: {project_id}")
+            update_cells(project_id, new_status=g.COPYING_STATUS.working)
 
-        for task in cvat.cvat_data(project_id=project_id):
-            sly.logger.debug(f"Copying task with id: {task.id}")
-            if not g.STATE.continue_copying:
-                sly.logger.debug("Copying is stopped by the user.")
-                continue
+            task_ids_with_errors = []
+            task_archive_paths = []
 
-            project_name = g.STATE.project_names[project_id]
-            project_dir = os.path.join(g.ARCHIVE_DIR, f"{project_id}_{project_name}")
-            sly.fs.mkdir(project_dir)
-            task_filename = f"{task.id}_{task.name}.zip"
+            for task in cvat.cvat_data(project_id=project_id):
+                sly.logger.debug(f"Copying task with id: {task.id}")
+                if not g.STATE.continue_copying:
+                    sly.logger.debug("Copying is stopped by the user.")
+                    continue
 
-            task_path = os.path.join(project_dir, task_filename)
-            download_status = save_task_to_zip(task.id, task_path)
-            if download_status is False:
-                task_ids_with_errors.append(task.id)
+                project_name = g.STATE.project_names[project_id]
+                project_dir = os.path.join(
+                    g.ARCHIVE_DIR, f"{project_id}_{project_name}"
+                )
+                sly.fs.mkdir(project_dir)
+                task_filename = f"{task.id}_{task.name}.zip"
+
+                task_path = os.path.join(project_dir, task_filename)
+                download_status = save_task_to_zip(task.id, task_path)
+                if download_status is False:
+                    task_ids_with_errors.append(task.id)
+                else:
+                    task_archive_paths.append(task_path)
+
+            if not task_archive_paths:
+                sly.logger.warning(
+                    f"No tasks was successfully downloaded for project ID {project_id}. It will be skipped."
+                )
+                new_status = g.COPYING_STATUS.error
+                uploded_with_errors += 1
             else:
-                task_archive_paths.append(task_path)
+                upload_status = convert_and_upload(
+                    project_id, project_name, task_archive_paths
+                )
 
-        if task_archive_paths:
-            convert_and_upload(project_id, project_name, task_archive_paths)
-            pass
+                if task_ids_with_errors:
+                    sly.logger.warning(
+                        f"Project ID {project_id} was downloaded with errors. Task IDs with errors: {task_ids_with_errors}."
+                    )
+                    new_status = g.COPYING_STATUS.error
+                    uploded_with_errors += 1
+                elif not upload_status:
+                    sly.logger.warning(
+                        f"Project ID {project_id} was uploaded with errors."
+                    )
+                    new_status = g.COPYING_STATUS.error
+                    uploded_with_errors += 1
+                else:
+                    sly.logger.info(
+                        f"Project ID {project_id} was downloaded successfully."
+                    )
+                    new_status = g.COPYING_STATUS.copied
+                    succesfully_uploaded += 1
 
-        if task_ids_with_errors:
-            sly.logger.warning(
-                f"Project ID {project_id} was downloaded with errors. Task IDs with errors: {task_ids_with_errors}."
-            )
-            new_status = g.COPYING_STATUS.error
-        else:
-            sly.logger.info(f"Project ID {project_id} was downloaded successfully.")
-            new_status = g.COPYING_STATUS.copied
+            update_cells(project_id, new_status=new_status)
 
-        update_cells(project_id, new_status=new_status)
+            sly.logger.info(f"Finished processing project ID {project_id}.")
+
+            pbar.update(1)
+
+    if succesfully_uploaded:
+        good_results.text = f"Succesfully uploaded {succesfully_uploaded} projects."
+        good_results.show()
+    if uploded_with_errors:
+        bad_results.text = f"Uploaded {uploded_with_errors} projects with errors."
+        bad_results.show()
 
     copy_button.text = "Copy"
+    stop_button.hide()
+
+    sly.logger.info(f"Finished copying {len(g.STATE.selected_projects)} projects.")
+    sly.logger.info("Stopping the application...")
+
+    from src.main import app
+
+    app.stop()
 
 
 def convert_and_upload(
     project_id: id, project_name: str, task_archive_paths: List[str]
-):
+) -> bool:
     unpacked_project_path = os.path.join(g.UNPACKED_DIR, f"{project_id}_{project_name}")
     sly.logger.debug(f"Unpacked project path: {unpacked_project_path}")
 
@@ -188,7 +235,7 @@ def convert_and_upload(
     project_meta = sly.ProjectMeta.from_json(g.api.project.get_meta(sly_project.id))
     sly.logger.debug(f"Retrieved project meta for {sly_project.name}.")
 
-    with_errors = False
+    succesfully_uploaded = True
 
     for task_archive_path in task_archive_paths:
         unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
@@ -282,7 +329,7 @@ def convert_and_upload(
                 f"Lengths of image_names, image_paths and anns are not equal. "
                 f"Task with data {task_archive_path} will be skipped."
             )
-            with_errors = True
+            succesfully_uploaded = False
             continue
 
         archive_name = sly.fs.get_file_name(task_archive_path)
@@ -320,17 +367,11 @@ def convert_and_upload(
         f"Finished copying project {project_name} from CVAT to Supervisely."
     )
 
-    if not with_errors:
-        new_status = g.COPYING_STATUS.copied
-        sly.logger.debug(f"Project {project_name} was copied successfully.")
-    else:
-        new_status = g.COPYING_STATUS.error
-        sly.logger.debug(f"Project {project_name} was copied with errors.")
-
-    update_cells(project_id, new_status=new_status)
     update_cells(project_id, new_url=sly_project.url)
 
     sly.logger.debug(f"Updated project {project_name} in the projects table.")
+
+    return succesfully_uploaded
 
 
 def update_project_meta(
