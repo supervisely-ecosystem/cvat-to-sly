@@ -15,8 +15,11 @@ SLY_APP_DATA_DIR = sly.app.get_data_dir()
 sly.logger.debug(f"SLY_APP_DATA_DIR: {SLY_APP_DATA_DIR}")
 
 TEMP_DIR = os.path.join(SLY_APP_DATA_DIR, "temp")
-sly.fs.mkdir(TEMP_DIR, remove_content_if_exists=True)
-sly.logger.debug(f"TEMP_DIR: {TEMP_DIR}")
+ARCHIVE_DIR = os.path.join(TEMP_DIR, "archives")
+UNPACKED_DIR = os.path.join(TEMP_DIR, "unpacked")
+sly.fs.mkdir(ARCHIVE_DIR, remove_content_if_exists=True)
+sly.fs.mkdir(UNPACKED_DIR, remove_content_if_exists=True)
+sly.logger.debug(f"Archive dir: {ARCHIVE_DIR}, unpacked dir: {UNPACKED_DIR}")
 
 
 class State:

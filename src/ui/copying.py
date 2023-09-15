@@ -1,6 +1,7 @@
 import os
 import shutil
 import supervisely as sly
+from typing import List
 
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
 
@@ -124,11 +125,13 @@ def start_copying():
             sly.logger.debug(f"Archive for task {task_id} was downloaded correctly.")
             return True
 
+    # TODO: Add progress bar for copying.
     for project_id in g.STATE.selected_projects:
         sly.logger.debug(f"Copying project with id: {project_id}")
         update_status_in_table(project_id, g.COPYING_STATUS.working)
 
         task_ids_with_errors = []
+        task_archive_paths = []
 
         for task in cvat.cvat_data(project_id=project_id):
             sly.logger.debug(f"Copying task with id: {task.id}")
@@ -138,19 +141,20 @@ def start_copying():
 
             project_name = g.STATE.project_names[project_id]
             project_dir_name = f"{project_id}_{project_name}"
-            task_dir_name = f"{task.id}_{task.name}"
-            task_dir = os.path.join(g.TEMP_DIR, project_dir_name, task_dir_name)
+            project_dir = os.path.join(g.ARCHIVE_DIR, project_dir_name)
+            sly.fs.mkdir(project_dir)
+            task_filename = f"{task.id}_{task.name}.zip"
 
-            sly.logger.debug(f"Creating task directory: {task_dir}")
-            sly.fs.mkdir(task_dir)
-
-            task_path = os.path.join(task_dir, f"{task.id}.zip")
+            task_path = os.path.join(project_dir, task_filename)
             download_status = save_task_to_zip(task.id, task_path)
             if download_status is False:
-                sly.logger.debug(
-                    f"Download status for task {task.id} is {download_status}."
-                )
                 task_ids_with_errors.append(task.id)
+            else:
+                task_archive_paths.append(task_path)
+
+        if task_archive_paths:
+            convert_and_upload(project_dir_name, task_archive_paths)
+            pass
 
         if task_ids_with_errors:
             sly.logger.warning(
@@ -164,6 +168,16 @@ def start_copying():
         update_status_in_table(project_id, new_status)
 
     copy_button.text = "Copy"
+
+
+def convert_and_upload(project_dir_name: str, task_archive_paths: List[str]):
+    unpacked_project_path = os.path.join(g.UNPACKED_DIR, project_dir_name)
+    for task_archive_path in task_archive_paths:
+        unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
+        unpacked_task_path = os.path.join(unpacked_project_path, unpacked_task_dir)
+
+        sly.fs.unpack_archive(task_archive_path, unpacked_task_path, remove_junk=True)
+        sly.logger.debug(f"Unpacked from {task_archive_path} to {unpacked_task_path}")
 
 
 def update_status_in_table(project_id: int, new_status: str) -> None:
@@ -181,6 +195,10 @@ def update_status_in_table(project_id: int, new_status: str) -> None:
     projects_table.update_cell_value(
         key_column_name, key_cell_value, column_name, new_status
     )
+
+
+def add_sly_url_to_table():
+    pass
 
 
 @stop_button.click
