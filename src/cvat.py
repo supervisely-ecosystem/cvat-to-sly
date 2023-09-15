@@ -8,11 +8,6 @@ import src.globals as g
 
 console = Console()
 
-CONFIGURATION = Configuration(
-    host=g.STATE.cvat_server_address,
-    username=g.STATE.cvat_username,
-    password=g.STATE.cvat_password,
-)
 
 # Entity of CVAT data: project or task.
 CVATData = namedtuple(
@@ -26,12 +21,25 @@ CVATFormat = namedtuple(
 )
 
 
+def get_configuration() -> Configuration:
+    """Returns CVAT API configuration object from saved in the global state credentials.
+
+    :return: CVAT API configuration object
+    :rtype: Configuration
+    """
+    return Configuration(
+        host=g.STATE.cvat_server_address,
+        username=g.STATE.cvat_username,
+        password=g.STATE.cvat_password,
+    )
+
+
 def check_connection() -> bool:
     sly.logger.debug(
         f"Will try to connect to CVAT API at {g.STATE.cvat_server_address} "
         "to check the connection settings."
     )
-    with ApiClient(CONFIGURATION) as api_client:
+    with ApiClient(get_configuration()) as api_client:
         try:
             (data, response) = api_client.server_api.retrieve_about()
         except Exception as e:
@@ -59,7 +67,7 @@ def cvat_data(**kwargs) -> Generator[CVATData, None, None]:
 
     sly.logger.debug(f"Will try to retreive {method} from CVAT API.")
 
-    with ApiClient(CONFIGURATION) as api_client:
+    with ApiClient(get_configuration()) as api_client:
         try:
             (data, response) = eval(f"api_client.{method}")
         except exceptions.ApiException as e:
@@ -100,7 +108,7 @@ def cvat_data(**kwargs) -> Generator[CVATData, None, None]:
 
 
 def retreive_dataset(task_id):
-    with ApiClient(CONFIGURATION) as api_client:
+    with ApiClient(get_configuration()) as api_client:
         try:
             (data, response) = api_client.tasks_api.retrieve_dataset(
                 format="CVAT for images 1.1",
@@ -127,7 +135,7 @@ def retreive_formats() -> Dict[str, List[CVATFormat]]:
     :return: dictionary with exporters and importers keys and lists of CVATFormat objects as values
     :rtype: Dict[str, List[CVATFormat]]
     """
-    with ApiClient(CONFIGURATION) as api_client:
+    with ApiClient(get_configuration()) as api_client:
         try:
             (data, response) = api_client.server_api.retrieve_annotation_formats()
         except exceptions.ApiException as e:
@@ -167,7 +175,10 @@ def retreive_formats() -> Dict[str, List[CVATFormat]]:
     return formats
 
 
-exporters = retreive_formats().get("exporters")
-sly.logger.debug(f"Retreived {len(exporters)} exporters from CVAT API.")
-cvat_formats = [exporter for exporter in exporters if "CVAT" in exporter.name]
-console.print(f"ℹ️ CVAT custom exporters: {cvat_formats}")
+try:
+    exporters = retreive_formats().get("exporters")
+    sly.logger.debug(f"Retreived {len(exporters)} exporters from CVAT API.")
+    cvat_formats = [exporter for exporter in exporters if "CVAT" in exporter.name]
+    console.print(f"ℹ️ CVAT custom exporters: {cvat_formats}")
+except Exception:
+    pass

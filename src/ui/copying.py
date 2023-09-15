@@ -178,7 +178,8 @@ def start_copying():
 
                 if task_ids_with_errors:
                     sly.logger.warning(
-                        f"Project ID {project_id} was downloaded with errors. Task IDs with errors: {task_ids_with_errors}."
+                        f"Project ID {project_id} was downloaded with errors. "
+                        "Task IDs with errors: {task_ids_with_errors}."
                     )
                     new_status = g.COPYING_STATUS.error
                     uploded_with_errors += 1

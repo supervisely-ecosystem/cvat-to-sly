@@ -175,6 +175,8 @@ def try_to_connect():
 if g.STATE.loaded_from_env:
     sly.logger.debug('The application was started with the "Load from .env" option.')
 
+    load_from_env_text.show()
+
     cvat_server_address_input.set_value(g.STATE.cvat_server_address)
     cvat_username_input.set_value(g.STATE.cvat_username)
     cvat_password_input.set_value(g.STATE.cvat_password)
