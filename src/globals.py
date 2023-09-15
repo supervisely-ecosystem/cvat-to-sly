@@ -72,8 +72,8 @@ sly.logger.debug(f"Path to the local cvat.env file: {CVAT_ENV_FILE}")
 CVAT_ENV_TEAMFILES = sly.env.file(raise_not_found=False)
 sly.logger.debug(f"Path to the TeamFiles from environment: {CVAT_ENV_TEAMFILES}")
 
-CopyingStatus = namedtuple("CopyingStatus", ["success", "error", "pending", "working"])
-COPYING_STATUS = CopyingStatus("✅", "❌", "⏳", "🔄")
+CopyingStatus = namedtuple("CopyingStatus", ["copied", "error", "waiting", "working"])
+COPYING_STATUS = CopyingStatus("✅ Copied", "❌ Error", "⏳ Waiting", "🔄 Working")
 
 if CVAT_ENV_TEAMFILES:
     sly.logger.debug(".env file is provided, will try to download it.")
