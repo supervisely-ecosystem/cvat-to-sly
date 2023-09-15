@@ -131,7 +131,7 @@ def start_copying():
     # TODO: Add progress bar for copying.
     for project_id in g.STATE.selected_projects:
         sly.logger.debug(f"Copying project with id: {project_id}")
-        update_status_in_table(project_id, g.COPYING_STATUS.working)
+        update_cells(project_id, new_status=g.COPYING_STATUS.working)
 
         task_ids_with_errors = []
         task_archive_paths = []
@@ -167,7 +167,7 @@ def start_copying():
             sly.logger.info(f"Project ID {project_id} was downloaded successfully.")
             new_status = g.COPYING_STATUS.copied
 
-        update_status_in_table(project_id, new_status)
+        update_cells(project_id, new_status=new_status)
 
     copy_button.text = "Copy"
 
@@ -178,12 +178,17 @@ def convert_and_upload(
     unpacked_project_path = os.path.join(g.UNPACKED_DIR, f"{project_id}_{project_name}")
     sly.logger.debug(f"Unpacked project path: {unpacked_project_path}")
 
-    new_project_name = f"From CVAT {project_name}"
-    project_info = g.api.project.create(g.STATE.selected_workspace, new_project_name)
-    sly.logger.debug(f"Created project {new_project_name} in Supervisely.")
+    sly_project = g.api.project.create(
+        g.STATE.selected_workspace,
+        f"From CVAT {project_name}",
+        change_name_if_conflict=True,
+    )
+    sly.logger.debug(f"Created project {sly_project.name} in Supervisely.")
 
-    project_meta = sly.ProjectMeta.from_json(g.api.project.get_meta(project_info.id))
-    sly.logger.debug("Retrieved project meta from Supervisely.")
+    project_meta = sly.ProjectMeta.from_json(g.api.project.get_meta(sly_project.id))
+    sly.logger.debug(f"Retrieved project meta for {sly_project.name}.")
+
+    with_errors = False
 
     for task_archive_path in task_archive_paths:
         unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
@@ -192,13 +197,22 @@ def convert_and_upload(
         sly.fs.unpack_archive(task_archive_path, unpacked_task_path, remove_junk=True)
         sly.logger.debug(f"Unpacked from {task_archive_path} to {unpacked_task_path}")
 
+        images_dir = os.path.join(unpacked_task_path, "images")
+        images_list = sly.fs.list_files(images_dir)
+
+        sly.logger.debug(f"Found {len(images_list)} images in {images_dir}.")
+
+        if not images_list:
+            sly.logger.warning(
+                f"No images found in {images_dir}, task will be skipped."
+            )
+            continue
+
         annotations_xml_path = os.path.join(unpacked_task_path, "annotations.xml")
         if not os.path.exists(annotations_xml_path):
-            sly.logger.error(
-                f"Can't find annotations.xml file in {unpacked_task_path}."
+            sly.logger.warning(
+                f"Can't find annotations.xml file in {unpacked_task_path}, will upload images without labels."
             )
-            # TODO: Do something with this error.
-            continue
 
         tree = ET.parse(annotations_xml_path)
         sly.logger.debug(f"Parsed annotations.xml from {annotations_xml_path}.")
@@ -230,26 +244,135 @@ def convert_and_upload(
             f"Prepared {len(sly_labels_in_task)} images with labels for upload."
         )
 
+        image_names = []
+        image_paths = []
+        anns = []
 
-def update_status_in_table(project_id: int, new_status: str) -> None:
-    """Updates the status of the project in the projects table.
+        for image in images_list:
+            image_name = sly.fs.get_file_name_with_ext(image)
+            image_path = os.path.join(images_dir, image_name)
+            image_names.append(image_name)
+            image_paths.append(image_path)
 
-    :param project_id: project ID in CVAT
-    :type project_id: int
-    :param new_status: new status for the project
-    :type new_status: str
-    """
-    key_column_name = "ID"
-    key_cell_value = project_id
-    column_name = "COPYING STATUS"
+            image_np = sly.image.read(image_path)
+            height, width, _ = image_np.shape
+            image_size = (height, width)
+            del image_np
 
-    projects_table.update_cell_value(
-        key_column_name, key_cell_value, column_name, new_status
+            sly.logger.debug(
+                f"Image {image_name} has size (height, width): {image_size}."
+            )
+
+            labels = sly_labels_in_task.get(image_name)
+            sly.logger.debug(f"Found {len(labels)} labels for {image_name}.")
+            if not labels:
+                ann = sly.Annotation(img_size=image_size)
+                sly.logger.debug(
+                    f"Created empty annotation for {image_name}, since no labels were found."
+                )
+            else:
+                project_meta = update_project_meta(project_meta, sly_project.id, labels)
+                ann = sly.Annotation(img_size=image_size, labels=labels)
+                sly.logger.debug(f"Created annotation for {image_name} with labels.")
+
+            anns.append(ann)
+
+        if len(image_names) != len(image_paths) != len(anns):
+            sly.logger.error(
+                f"Lengths of image_names, image_paths and anns are not equal. "
+                f"Task with data {task_archive_path} will be skipped."
+            )
+            with_errors = True
+            continue
+
+        archive_name = sly.fs.get_file_name(task_archive_path)
+        sly_dataset = g.api.dataset.create(
+            sly_project.id, archive_name, change_name_if_conflict=True
+        )
+
+        sly.logger.debug(
+            f"Created dataset {sly_dataset.name} in project {sly_project.name}."
+        )
+
+        sly.logger.info(f"Uploading {len(image_names)} images to Supervisely.")
+
+        for batched_image_names, batched_image_paths, batched_anns in zip(
+            sly.batched(image_names), sly.batched(image_paths), sly.batched(anns)
+        ):
+            uploaded_image_infos = g.api.image.upload_paths(
+                sly_dataset.id, batched_image_names, batched_image_paths
+            )
+            uploaded_image_ids = [image_info.id for image_info in uploaded_image_infos]
+
+            sly.logger.info(
+                f"Uploaded {len(uploaded_image_ids)} images to Supervisely to dataset {sly_dataset.name}."
+            )
+
+            g.api.annotation.upload_anns(uploaded_image_ids, batched_anns)
+
+            sly.logger.info(f"Uploaded {len(batched_anns)} annotations to Supervisely.")
+
+        sly.logger.info(
+            f"Finished uploading images and annotations from arhive {task_archive_path} to Supervisely."
+        )
+
+    sly.logger.info(
+        f"Finished copying project {project_name} from CVAT to Supervisely."
     )
 
+    if not with_errors:
+        new_status = g.COPYING_STATUS.copied
+        sly.logger.debug(f"Project {project_name} was copied successfully.")
+    else:
+        new_status = g.COPYING_STATUS.error
+        sly.logger.debug(f"Project {project_name} was copied with errors.")
 
-def add_sly_url_to_table():
-    pass
+    update_cells(project_id, new_status=new_status)
+    update_cells(project_id, new_url=sly_project.url)
+
+    sly.logger.debug(f"Updated project {project_name} in the projects table.")
+
+
+def update_project_meta(
+    project_meta: sly.ProjectMeta, project_id: int, labels: List[sly.Label]
+) -> sly.ProjectMeta:
+    for label in labels:
+        label: sly.Label
+        if label.obj_class not in project_meta.obj_classes:
+            sly.logger.debug(
+                f"Object class {label.obj_class.name} not found in project meta, will add it."
+            )
+            project_meta = project_meta.add_obj_class(label.obj_class)
+            g.api.project.update_meta(project_id, project_meta)
+            sly.logger.debug(
+                f"Object class {label.obj_class.name} added, meta updated on Supervisely."
+            )
+
+    return project_meta
+
+
+def update_cells(project_id: int, **kwargs) -> None:
+    """Updates cells in the projects table by project ID.
+    Possible kwargs:
+        - new_status: new status for the project
+        - new_url: new Supervisely URL for the project
+
+    :param project_id: project ID in CVAT for projects table to update
+    :type project_id: int
+    """
+    key_cell_value = project_id
+    key_column_name = "ID"
+    if kwargs.get("new_status"):
+        column_name = "COPYING STATUS"
+        new_value = kwargs["new_status"]
+    elif kwargs.get("new_url"):
+        column_name = "SUPERVISELY URL"
+        url = kwargs["new_url"]
+        new_value = f"<a href='{url}' target='_blank'>{url}</a>"
+
+    projects_table.update_cell_value(
+        key_column_name, key_cell_value, column_name, new_value
+    )
 
 
 @stop_button.click

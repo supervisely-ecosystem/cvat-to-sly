@@ -16,10 +16,10 @@ def convert_rectangle(cvat_label: Dict[str, str]) -> sly.Label:
 
     sly_label = sly.Label(
         geometry=sly.Rectangle(
-            top=int(float(cvat_label["xtl"])),
-            left=int(float(cvat_label["ytl"])),
-            bottom=int(float(cvat_label["xbr"])),
-            right=int(float(cvat_label["ybr"])),
+            top=int(float(cvat_label["ytl"])),
+            left=int(float(cvat_label["xtl"])),
+            bottom=int(float(cvat_label["ybr"])),
+            right=int(float(cvat_label["xbr"])),
         ),
         obj_class=obj_class,
     )
