@@ -2,11 +2,14 @@ import os
 import shutil
 import supervisely as sly
 from typing import List
+from collections import defaultdict
 
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
+import xml.etree.ElementTree as ET
 
 import src.globals as g
 import src.cvat as cvat
+import src.converters as converters
 
 COLUMNS = [
     "COPYING STATUS",
@@ -140,8 +143,7 @@ def start_copying():
                 continue
 
             project_name = g.STATE.project_names[project_id]
-            project_dir_name = f"{project_id}_{project_name}"
-            project_dir = os.path.join(g.ARCHIVE_DIR, project_dir_name)
+            project_dir = os.path.join(g.ARCHIVE_DIR, f"{project_id}_{project_name}")
             sly.fs.mkdir(project_dir)
             task_filename = f"{task.id}_{task.name}.zip"
 
@@ -153,7 +155,7 @@ def start_copying():
                 task_archive_paths.append(task_path)
 
         if task_archive_paths:
-            convert_and_upload(project_dir_name, task_archive_paths)
+            convert_and_upload(project_id, project_name, task_archive_paths)
             pass
 
         if task_ids_with_errors:
@@ -170,14 +172,63 @@ def start_copying():
     copy_button.text = "Copy"
 
 
-def convert_and_upload(project_dir_name: str, task_archive_paths: List[str]):
-    unpacked_project_path = os.path.join(g.UNPACKED_DIR, project_dir_name)
+def convert_and_upload(
+    project_id: id, project_name: str, task_archive_paths: List[str]
+):
+    unpacked_project_path = os.path.join(g.UNPACKED_DIR, f"{project_id}_{project_name}")
+    sly.logger.debug(f"Unpacked project path: {unpacked_project_path}")
+
+    new_project_name = f"From CVAT {project_name}"
+    project_info = g.api.project.create(g.STATE.selected_workspace, new_project_name)
+    sly.logger.debug(f"Created project {new_project_name} in Supervisely.")
+
+    project_meta = sly.ProjectMeta.from_json(g.api.project.get_meta(project_info.id))
+    sly.logger.debug("Retrieved project meta from Supervisely.")
+
     for task_archive_path in task_archive_paths:
         unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
         unpacked_task_path = os.path.join(unpacked_project_path, unpacked_task_dir)
 
         sly.fs.unpack_archive(task_archive_path, unpacked_task_path, remove_junk=True)
         sly.logger.debug(f"Unpacked from {task_archive_path} to {unpacked_task_path}")
+
+        annotations_xml_path = os.path.join(unpacked_task_path, "annotations.xml")
+        if not os.path.exists(annotations_xml_path):
+            sly.logger.error(
+                f"Can't find annotations.xml file in {unpacked_task_path}."
+            )
+            # TODO: Do something with this error.
+            continue
+
+        tree = ET.parse(annotations_xml_path)
+        sly.logger.debug(f"Parsed annotations.xml from {annotations_xml_path}.")
+
+        images = tree.findall("image")
+        sly.logger.debug(f"Found {len(images)} images in annotations.xml.")
+
+        sly_labels_in_task = defaultdict(list)
+
+        for image in images:
+            image_name = image.attrib["name"]
+
+            geometries = list(converters.CONVERT_MAP.keys())
+            for geometry in geometries:
+                cvat_labels = image.findall(geometry)
+
+                sly.logger.debug(
+                    f"Found {len(cvat_labels)} with {geometry} geometry in {image_name}."
+                )
+
+                for cvat_label in cvat_labels:
+                    sly_label = converters.CONVERT_MAP[geometry](cvat_label.attrib)
+                    sly_labels_in_task[image_name].append(sly_label)
+                    sly.logger.debug(
+                        f"Adding converted sly label with geometry {geometry} to the list of {image_name}."
+                    )
+
+        sly.logger.debug(
+            f"Prepared {len(sly_labels_in_task)} images with labels for upload."
+        )
 
 
 def update_status_in_table(project_id: int, new_status: str) -> None:
