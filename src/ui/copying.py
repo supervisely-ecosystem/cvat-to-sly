@@ -312,7 +312,6 @@ def convert_and_upload(
             )
 
             labels = sly_labels_in_task.get(image_name)
-            sly.logger.debug(f"Found {len(labels)} labels for {image_name}.")
             if not labels:
                 ann = sly.Annotation(img_size=image_size)
                 sly.logger.debug(
