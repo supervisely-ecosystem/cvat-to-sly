@@ -39,6 +39,7 @@ def fill_transfer_with_projects():
 
     sly.logger.debug(f"Prepared {len(transfer_items)} items for transfer.")
 
+    transfer_items.sort(key=lambda item: item.key)
     projects_transfer.set_items(transfer_items)
     sly.logger.debug("Transfer widget filled with projects.")
 

@@ -272,6 +272,8 @@ def convert_and_upload(
 
         for image in images:
             image_name = image.attrib["name"]
+            image_height = int(image.attrib["height"])
+            image_width = int(image.attrib["width"])
 
             geometries = list(converters.CONVERT_MAP.keys())
             for geometry in geometries:
@@ -282,8 +284,19 @@ def convert_and_upload(
                 )
 
                 for cvat_label in cvat_labels:
-                    sly_label = converters.CONVERT_MAP[geometry](cvat_label.attrib)
-                    sly_labels_in_task[image_name].append(sly_label)
+                    sly_label = converters.CONVERT_MAP[geometry](
+                        cvat_label.attrib,
+                        image_height=image_height,
+                        image_width=image_width,
+                    )
+
+                    if isinstance(sly_label, list):
+                        # * If CVAT label was converted to multiple Supervisely labels (e.g. for points)
+                        # * we need to extend the list of labels for the image.
+                        sly_labels_in_task[image_name].extend(sly_label)
+                    else:
+                        # Otherwise we just append the label to the list.
+                        sly_labels_in_task[image_name].append(sly_label)
                     sly.logger.debug(
                         f"Adding converted sly label with geometry {geometry} to the list of {image_name}."
                     )
@@ -312,6 +325,9 @@ def convert_and_upload(
             )
 
             labels = sly_labels_in_task.get(image_name)
+
+            # * Remove None values from the list of labels to avoid errors.
+            labels = [label for label in labels if label is not None]
             if not labels:
                 ann = sly.Annotation(img_size=image_size)
                 sly.logger.debug(
