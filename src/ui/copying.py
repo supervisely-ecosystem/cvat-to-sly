@@ -1,7 +1,7 @@
 import os
 import shutil
 import supervisely as sly
-from typing import List
+from typing import List, Dict, Optional
 from collections import defaultdict
 
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
@@ -48,7 +48,11 @@ card.lock()
 card.collapse()
 
 
-def build_projects_table():
+def build_projects_table() -> None:
+    """Fills the table with projects from CVAT.
+    Uses global g.STATE.selected_projects to get the list of projects to show.
+    g.STATE.selected_projects is a list of project IDs from CVAT.
+    """
     sly.logger.debug("Building projects table...")
     projects_table.loading = True
     rows = []
@@ -84,7 +88,26 @@ def build_projects_table():
 
 
 @copy_button.click
-def start_copying():
+def start_copying() -> None:
+    """Main function for copying projects from CVAT to Supervisely.
+    1. Starts copying progress, changes state of widgets in UI.
+    2. Iterates over selected projects from CVAT.
+    3. For each project:
+        3.1. Updates the status in the projects table to "Copying...".
+        3.2. Iterates over tasks in the project.
+        3.3. For each task:
+            3.3.1. Downloads the task data from CVAT API.
+            3.3.2. Saves the task data to the zip archive (using up to 10 retries).
+        3.4. If the archive is empty after 10 retries, updates the status in the projects table to "Error".
+        3.5. Otherwise converts the task data to Supervisely format and uploads it to Supervisely.
+        3.6. If the task was uploaded with errors, updates the status in the projects table to "Error".
+        3.7. Otherwise updates the status in the projects table to "Copied".
+    4. Updates the status in the projects table to "Copied" or "Error" for each project.
+    5. Stops copying progress, changes state of widgets in UI.
+    6. Shows the results of copying.
+    7. Removes content from download and upload directories (if not in development mode).
+    8. Stops the application (if not in development mode).
+    """
     sly.logger.debug(
         f"Copying button is clicked. Selected projects: {g.STATE.selected_projects}"
     )
@@ -213,7 +236,22 @@ def start_copying():
     stop_button.hide()
 
     sly.logger.info(f"Finished copying {len(g.STATE.selected_projects)} projects.")
-    sly.logger.info("Stopping the application...")
+
+    if sly.is_development():
+        # * For debug purposes it's better to save the data from CVAT.
+        sly.logger.debug(
+            "Development mode, will not stop the application. "
+            "And NOT clean download and upload directories."
+        )
+        return
+
+    sly.fs.clean_dir(g.ARCHIVE_DIR)
+    sly.fs.clean_dir(g.UNPACKED_DIR)
+
+    sly.logger.info(
+        f"Removed content from {g.ARCHIVE_DIR} and {g.UNPACKED_DIR}."
+        "Will stop the application."
+    )
 
     from src.main import app
 
@@ -237,6 +275,7 @@ def convert_and_upload(
     sly.logger.debug(f"Retrieved project meta for {sly_project.name}.")
 
     succesfully_uploaded = True
+    uploaded_images = []
 
     for task_archive_path in task_archive_paths:
         unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
@@ -269,15 +308,28 @@ def convert_and_upload(
         sly.logger.debug(f"Found {len(images)} images in annotations.xml.")
 
         sly_labels_in_task = defaultdict(list)
+        sly_tags_in_task = defaultdict(list)
 
         for image in images:
             image_name = image.attrib["name"]
             image_height = int(image.attrib["height"])
             image_width = int(image.attrib["width"])
 
+            cvat_tags = image.findall("tag") or []
+
+            sly.logger.debug(f"Found {len(cvat_tags)} tags in {image_name}.")
+
+            for cvat_tag in cvat_tags:
+                sly_tag = converters.convert_tag(cvat_tag.attrib)
+                sly_tags_in_task[image_name].append(sly_tag)
+
+                sly.logger.debug(
+                    f"Adding converted sly tag to the list of {image_name}."
+                )
+
             geometries = list(converters.CONVERT_MAP.keys())
             for geometry in geometries:
-                cvat_labels = image.findall(geometry)
+                cvat_labels = image.findall(geometry) or []
 
                 sly.logger.debug(
                     f"Found {len(cvat_labels)} with {geometry} geometry in {image_name}."
@@ -326,19 +378,32 @@ def convert_and_upload(
 
             labels = sly_labels_in_task.get(image_name)
 
-            # * Remove None values from the list of labels to avoid errors.
-            labels = [label for label in labels if label is not None]
             if not labels:
                 ann = sly.Annotation(img_size=image_size)
                 sly.logger.debug(
                     f"Created empty annotation for {image_name}, since no labels were found."
                 )
             else:
-                project_meta = update_project_meta(project_meta, sly_project.id, labels)
+                # * Remove None values from the list of labels to avoid errors.
+                labels = [label for label in labels if label is not None]
+
+                project_meta = update_project_meta(
+                    project_meta, sly_project.id, labels=labels
+                )
                 ann = sly.Annotation(img_size=image_size, labels=labels)
                 sly.logger.debug(f"Created annotation for {image_name} with labels.")
 
             anns.append(ann)
+
+            tags = sly_tags_in_task.get(image_name)
+            if tags:
+                sly.logger.debug(
+                    f"Image {image_name} has tags, will try to update project meta."
+                )
+
+                project_meta = update_project_meta(
+                    project_meta, sly_project.id, tags=tags
+                )
 
         if len(image_names) != len(image_paths) != len(anns):
             sly.logger.error(
@@ -365,6 +430,9 @@ def convert_and_upload(
             uploaded_image_infos = g.api.image.upload_paths(
                 sly_dataset.id, batched_image_names, batched_image_paths
             )
+
+            uploaded_images.extend(uploaded_image_infos)
+
             uploaded_image_ids = [image_info.id for image_info in uploaded_image_infos]
 
             sly.logger.info(
@@ -379,6 +447,12 @@ def convert_and_upload(
             f"Finished uploading images and annotations from arhive {task_archive_path} to Supervisely."
         )
 
+    if sly_tags_in_task:
+        sly.logger.debug("There were tags in the current task, will upload them.")
+        upload_tags(uploaded_images, sly_project.id, sly_tags_in_task)
+    else:
+        sly.logger.debug("No tags were found in the current task, nothing to upload.")
+
     sly.logger.info(
         f"Finished copying project {project_name} from CVAT to Supervisely."
     )
@@ -390,20 +464,106 @@ def convert_and_upload(
     return succesfully_uploaded
 
 
+def upload_tags(
+    uploaded_images: List[sly.ImageInfo],
+    sly_project_id: int,
+    sly_tags_in_task: Dict[str, List[sly.Tag]],
+) -> None:
+    """Upload tags for the uploaded images to Supervisely.
+
+    :param uploaded_images: list of uploaded images as ImageInfo objects
+    :type uploaded_images: List[sly.ImageInfo]
+    :param sly_project_id: project ID in Supervisely
+    :type sly_project_id: int
+    :param sly_tags_in_task: dictionary with tags for each image by image name
+    :type sly_tags_in_task: Dict[str, List[sly.Tag]]
+    """
+    tag_data_for_upload = defaultdict(list)
+
+    sly.logger.debug(
+        f"Started building tags dictionary for {len(uploaded_images)} images."
+    )
+
+    for image_info in uploaded_images:
+        tags = sly_tags_in_task.get(image_info.name)
+        if tags:
+            for tag in tags:
+                tag_data_for_upload[tag.name].append(image_info.id)
+
+    sly.logger.debug(
+        f"Prepared dictionary with {len(tag_data_for_upload)} tags. "
+        "Starting to upload tags to Supervisely."
+    )
+
+    for tag_name, image_ids in tag_data_for_upload.items():
+        # * For some reason using local project meta leads to None from sly_id,
+        # * which creates an error when uploading tags. So we need to get active
+        # * tag meta from API for each tag.
+        tag_id = get_tag_meta(sly_project_id, tag_name).sly_id
+        g.api.image.add_tag_batch(image_ids, tag_id)
+
+    sly.logger.info("Tags successfully uploaded to Supervisely.")
+
+
+def get_tag_meta(sly_project_id: int, tag_name: str) -> sly.TagMeta:
+    """Returns active tag meta from API for the given project ID and tag name.
+    Important: this function makes an API call, because local project meta does not contain tag IDs.
+
+    :param sly_project_id: project ID in Supervisely
+    :type sly_project_id: int
+    :param tag_name: tag name to get meta for
+    :type tag_name: str
+    :return: tag meta from API
+    :rtype: sly.TagMeta
+    """
+    project_meta = sly.ProjectMeta.from_json(g.api.project.get_meta(sly_project_id))
+    return project_meta.get_tag_meta(tag_name)
+
+
 def update_project_meta(
-    project_meta: sly.ProjectMeta, project_id: int, labels: List[sly.Label]
+    project_meta: sly.ProjectMeta,
+    project_id: int,
+    labels: Optional[List[sly.Label]] = None,
+    tags: Optional[List[sly.Tag]] = None,
 ) -> sly.ProjectMeta:
-    for label in labels:
-        label: sly.Label
-        if label.obj_class not in project_meta.obj_classes:
-            sly.logger.debug(
-                f"Object class {label.obj_class.name} not found in project meta, will add it."
-            )
-            project_meta = project_meta.add_obj_class(label.obj_class)
-            g.api.project.update_meta(project_id, project_meta)
-            sly.logger.debug(
-                f"Object class {label.obj_class.name} added, meta updated on Supervisely."
-            )
+    """Updates Supervisely projects meta with new labels or tags on instance and returns updated meta.
+
+    :param project_meta: project meta to update
+    :type project_meta: sly.ProjectMeta
+    :param project_id: project ID in Supervisely
+    :type project_id: int
+    :param labels: list of Supervisely labels to add to the project meta, defaults to None
+    :type labels: Optional[List[sly.Label]], optional
+    :param tags: list of Supervisely tags to add to the project meta, defaults to None
+    :type tags: Optional[List[sly.Tag]], optional
+    :return: updated project meta (or the same if no changes were made)
+    :rtype: sly.ProjectMeta
+    """
+
+    if labels:
+        for label in labels:
+            label: sly.Label
+            if label.obj_class not in project_meta.obj_classes:
+                sly.logger.debug(
+                    f"Object class {label.obj_class.name} not found in project meta, will add it."
+                )
+                project_meta = project_meta.add_obj_class(label.obj_class)
+                g.api.project.update_meta(project_id, project_meta)
+                sly.logger.debug(
+                    f"Object class {label.obj_class.name} added, meta updated on Supervisely."
+                )
+    elif tags:
+        for tag in tags:
+            tag: sly.Tag
+            if tag.meta not in project_meta.tag_metas:
+                sly.logger.debug(
+                    f"Tag meta {tag.meta.name} not found in project meta, will add it."
+                )
+                project_meta = project_meta.add_tag_meta(tag.meta)
+                g.api.project.update_meta(project_id, project_meta)
+                sly.logger.debug(
+                    f"Tag meta {tag.meta.name} added, meta updated on Supervisely."
+                )
 
     return project_meta
 
@@ -433,7 +593,8 @@ def update_cells(project_id: int, **kwargs) -> None:
 
 
 @stop_button.click
-def stop_copying():
+def stop_copying() -> None:
+    """Stops copying process by setting continue_copying flag to False."""
     sly.logger.debug("Stop button is clicked.")
 
     g.STATE.continue_copying = False

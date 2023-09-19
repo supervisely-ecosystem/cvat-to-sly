@@ -238,6 +238,25 @@ def cvat_rle_to_binary_mask(
     return mask
 
 
+def convert_tag(cvat_tag: Dict[str, str]) -> sly.Tag:
+    """Converts a tag from CVAT format to Supervisely format.
+
+    :param cvat_tag: tag in CVAT format (from XML parser)
+    :type cvat_tag: Dict[str, str]
+    :return: tag in Supervisely format
+    :rtype: sly.Tag
+    """
+    # XML Example:
+    # <tag label="woman" source="manual">
+    # </tag>
+
+    tag_name = cvat_tag["label"]
+    tag_meta = sly.TagMeta(tag_name, value_type=sly.TagValueType.NONE)
+    sly_tag = sly.Tag(tag_meta)
+
+    return sly_tag
+
+
 CONVERT_MAP = {
     "box": convert_rectangle,
     "polygon": convert_polygon,
