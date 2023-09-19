@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import supervisely as sly
 
-from supervisely.geometry.graph import Node, KeypointsTemplate
+from supervisely.geometry.graph import KeypointsTemplate
 
 # * Imports for sly.Cuboid
 # from supervisely.geometry.point_location import PointLocation
@@ -197,6 +197,7 @@ def convert_skeleton(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     class_name = cvat_label["label"] + "_graph"
 
     nodes = kwargs.get("nodes")
+    nodes = sorted(nodes, key=lambda node: node.get("label"))
 
     if not nodes:
         sly.logger.error(
@@ -212,7 +213,26 @@ def convert_skeleton(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     #   </points>
     # </skeleton>
 
-    # template = KeypointsTemplate()
+    MULTIPLIER = 10
+
+    template = KeypointsTemplate()
+    sly_nodes = []
+    for idx, node in enumerate(nodes):
+        label = node.get("label")
+        points = [int(float(point)) for point in node.get("points").split(",")]
+        col, row = points
+        template.add_point(label=label, row=idx * MULTIPLIER, col=idx * MULTIPLIER)
+        sly_nodes.append(sly.Node(label=label, row=row, col=col))
+
+    obj_class = sly.ObjClass(
+        name=class_name,
+        geometry_type=sly.GraphNodes,
+        geometry_config=template,
+    )
+
+    sly_label = sly.Label(geometry=sly.GraphNodes(sly_nodes), obj_class=obj_class)
+
+    return sly_label
 
 
 def extract_points(points: str) -> List[Tuple[int, int]]:
