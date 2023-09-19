@@ -1,3 +1,4 @@
+from typing import NamedTuple
 import supervisely as sly
 from supervisely.app.widgets import Card, Transfer, Button, Container
 
@@ -27,7 +28,10 @@ card.lock()
 card.collapse()
 
 
-def fill_transfer_with_projects():
+def fill_transfer_with_projects() -> None:
+    """Fills the transfer widget with projects sorted by id from CVAT API.
+    On every launch clears the items in the widget and fills it with new projects."""
+
     sly.logger.debug("Starting to build transfer widget with projects.")
     transfer_items = []
 
@@ -45,7 +49,14 @@ def fill_transfer_with_projects():
 
 
 @projects_transfer.value_changed
-def project_changed(items):
+def project_changed(items: NamedTuple) -> None:
+    """Enables or disables the select projects button depending on the selected
+    projects in the transfer widget. If at least one project is selected, the button is enabled.
+    Otherwise, the button is disabled.
+
+    :param items: namedtuple containing two lists (transferred_items and untransferred_items)
+    :type items: NamedTuple
+    """
     if items.transferred_items:
         select_projects_button.enable()
     else:
@@ -53,7 +64,9 @@ def project_changed(items):
 
 
 @select_projects_button.click
-def select_projects():
+def select_projects() -> None:
+    """Saves the selected projects to the global state and builds the projects table."""
+
     project_ids = projects_transfer.get_transferred_items()
 
     sly.logger.debug(
@@ -72,7 +85,9 @@ def select_projects():
 
 
 @change_selection_button.click
-def change_selection():
+def change_selection() -> None:
+    """Changes the widget states and resets the selected projects in the global state."""
+
     sly.logger.debug(
         "Change selection button clicked, will change widget states "
         "And reset selected projects in the global state."

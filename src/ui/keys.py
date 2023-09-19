@@ -68,7 +68,10 @@ card = Card(
 )
 
 
-def connected():
+def connected() -> None:
+    """Changes the state of the widgets if the app successfully connected to the CVAT server.
+    Launches the process of filling the transfer with projects from CVAT API."""
+
     sly.logger.debug("Status changed to connected, will change widget states.")
     for widget in widgets:
         widget.disable()
@@ -86,7 +89,14 @@ def connected():
     selection.fill_transfer_with_projects()
 
 
-def disconnected(with_error=False):
+def disconnected(with_error=False) -> None:
+    """Changes the state of the widgets if the app disconnected from the CVAT server.
+    Depending on the value of the with_error parameter, the status text will be different.
+
+    :param with_error: if the app was disconnected from server or by a pressing change button, defaults to False
+    :type with_error: bool, optional
+    """
+
     sly.logger.debug(
         f"Status changed to disconnected with error: {with_error}, will change widget states."
     )
@@ -153,7 +163,9 @@ cvat_password_input.value_changed(change_connect_button_state)
 
 
 @connect_button.click
-def try_to_connect():
+def try_to_connect() -> None:
+    """Save the CVAT credentials from the widgets to the global State and try to connect to the CVAT server.
+    Depending on the result of the connection, the state of the widgets will change."""
     g.STATE.cvat_server_address = cvat_server_address_input.get_value()
     g.STATE.cvat_username = cvat_username_input.get_value()
     g.STATE.cvat_password = cvat_password_input.get_value()
