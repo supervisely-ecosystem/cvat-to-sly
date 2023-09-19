@@ -114,6 +114,7 @@ def start_copying() -> None:
 
     stop_button.show()
     copy_button.text = "Copying..."
+    g.STATE.continue_copying = True
 
     def save_task_to_zip(task_id: int, task_path: str, retry: int = 0) -> bool:
         """Tries to download the task data from CVAT API and save it to the zip archive.
