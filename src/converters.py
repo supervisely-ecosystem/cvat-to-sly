@@ -3,6 +3,8 @@ from typing import Dict, List, Tuple
 import numpy as np
 import supervisely as sly
 
+from supervisely.geometry.graph import Node, KeypointsTemplate
+
 # * Imports for sly.Cuboid
 # from supervisely.geometry.point_location import PointLocation
 # from supervisely.geometry.cuboid import CuboidFace
@@ -183,6 +185,36 @@ def convert_mask(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     return sly_label
 
 
+def convert_skeleton(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
+    """Converts a label with "skeleton" geometry from CVAT format to Supervisely format.
+
+    :param cvat_label: label in CVAT format (from XML parser)
+    :type cvat_label: Dict[str, str]
+    :return: label in Supervisely format
+    :rtype: sly.Label
+    """
+
+    class_name = cvat_label["label"] + "_graph"
+
+    nodes = kwargs.get("nodes")
+
+    if not nodes:
+        sly.logger.error(
+            f"Points are not provided for skeleton, the label for {cvat_label} will be skipped."
+        )
+        return
+
+    # XML Example:
+    # <skeleton label="person-body" z_order="0">
+    #   <points label="neck" outside="0" occluded="0" points="575.91,828.41">
+    #   </points>
+    #   <points label="chest" outside="0" occluded="0" points="584.93,1032.86">
+    #   </points>
+    # </skeleton>
+
+    # template = KeypointsTemplate()
+
+
 def extract_points(points: str) -> List[Tuple[int, int]]:
     """Extracts points from a string in CVAT format after parsing XML.
 
@@ -264,4 +296,5 @@ CONVERT_MAP = {
     "points": convert_points,
     # "cuboid": convert_cuboid, # ! Do not uncomment this line until the function is implemented.
     "mask": convert_mask,
+    "skeleton": convert_skeleton,
 }

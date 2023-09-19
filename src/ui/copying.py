@@ -336,10 +336,12 @@ def convert_and_upload(
                 )
 
                 for cvat_label in cvat_labels:
+                    nodes = cvat_label.findall("points") or []
                     sly_label = converters.CONVERT_MAP[geometry](
                         cvat_label.attrib,
                         image_height=image_height,
                         image_width=image_width,
+                        nodes=nodes,
                     )
 
                     if isinstance(sly_label, list):
