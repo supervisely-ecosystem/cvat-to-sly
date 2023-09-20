@@ -4,10 +4,8 @@ import numpy as np
 import supervisely as sly
 
 from supervisely.geometry.graph import KeypointsTemplate
-
-# * Imports for sly.Cuboid
-# from supervisely.geometry.point_location import PointLocation
-# from supervisely.geometry.cuboid import CuboidFace
+from supervisely.geometry.point_location import PointLocation
+from supervisely.geometry.cuboid import CuboidFace
 
 
 def convert_rectangle(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
@@ -118,7 +116,7 @@ def convert_points(cvat_label: Dict[str, str], **kwargs) -> List[sly.Label]:
     return sly_labels
 
 
-def convert_cuboid(cvat_label: Dict[str, str]) -> sly.Label:
+def convert_cuboid(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     """NOTE: This function is not implemented yet.
     Converts a label with "cuboid" geometry from CVAT format to Supervisely format.
 
@@ -128,8 +126,8 @@ def convert_cuboid(cvat_label: Dict[str, str]) -> sly.Label:
     :return: label in Supervisely format
     :rtype: sly.Label
     """
-    # class_name = cvat_label["label"] + "_cuboid"
-    # obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Cuboid)
+    class_name = cvat_label["label"] + "_cuboid"
+    obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Cuboid)
 
     # XML Example:
     # <cuboid label="ear" occluded="0" xtl1="609.02" ytl1="440.04" xbl1="609.02" ybl1="487.05"
@@ -138,9 +136,88 @@ def convert_cuboid(cvat_label: Dict[str, str]) -> sly.Label:
     #                                  xtr2="646.30" ytr2="418.17" xbr2="646.30" ybr2="465.15" z_order="0">
     # </cuboid>
 
-    raise NotImplementedError(
-        "Converting CVAT cuboid to Supervisely cuboid is not implemented yet."
+    # Supervisely cuboid coordinate system to CVAT cuboid coordinate system:
+    #
+    # *          4-------5      POINT 0: top left front           (ytl1, xtl1)
+    # *         /|      /|      POINT 1: top right front          (ytr1, xtr1)
+    # *        / |     / |      POINT 2: bottom right front       (ybr1, xbr1)
+    # *       0-------1  |      POINT 3: bottom left front        (ybl1, xbl1)
+    # *       |  7----|--6      POINT 4: top left back            (ytl2, xtl2)
+    # *       | /     | /       POINT 5: top right back           (ytr2, xtr2)
+    # *       |/      |/        POINT 6: bottom right back        (ybr2, xbr2)
+    # *       3-------2         POINT 7: bottom left back         (ybl2, xbl2)
+    #                           NOTE: POINT 7 is not used in Supervisely
+
+    return  # TODO: Remove this line after implementing the function on the API side.
+
+    point_keys = [
+        ("ytl1", "xtl1"),  # POINT 0
+        ("ytr1", "xtr1"),  # POINT 1
+        ("ybr1", "xbr1"),  # POINT 2
+        ("ybl1", "xbl1"),  # POINT 3
+        ("ytl2", "xtl2"),  # POINT 4
+        ("ytr2", "xtr2"),  # POINT 5
+        ("ybr2", "xbr2"),  # POINT 6
+    ]
+
+    # points - an array of points that form the cuboid. There are always 7 points in a cuboid.
+    # Each point is presented as an array of X and Y coordinates.
+    points = []
+
+    for key in point_keys:
+        points.append(
+            PointLocation(
+                row=int(float(cvat_label[key[0]])),
+                col=int(float(cvat_label[key[1]])),
+            )
+        )
+
+    # faces - an array of faces that indicates how points from the points array are connected.
+    # There are always 3 faces in a cuboid.
+    faces = [
+        CuboidFace(0, 1, 2, 3),
+        CuboidFace(0, 4, 5, 1),
+        CuboidFace(1, 5, 6, 2),
+    ]
+
+    sly_label = sly.Label(
+        geometry=sly.Cuboid(points=points, faces=faces),
+        obj_class=obj_class,
     )
+
+    return sly_label
+
+    # TODO: Implement this function on the API side.
+    # * It looks like the converter works fine, but the API raises error about
+    # * faces is not provided, while it's obviously provided and can be accessed
+    # * after .to_json() method, where all faces are exist and correct.
+    # Example of label.to_json() output:
+    #  "faces": [
+    #     [
+    #         0,
+    #         1,
+    #         2,
+    #         3
+    #     ],
+    #     [
+    #         0,
+    #         4,
+    #         5,
+    #         1
+    #     ],
+    #     [
+    #         1,
+    #         5,
+    #         6,
+    #         2
+    #     ]
+    # ],
+    #
+    # The error message from the API:
+    # requests.exceptions.HTTPError: 400 Client Error: Bad Request for url:
+    # https://dev.supervise.ly/public/api/v3/annotations.bulk.add
+    # ({"error":"Field 'faces' not found in Cuboid JSON data.","details":
+    # [{"message":"Field 'faces' not found in Cuboid JSON data.","index":0,"entityId":23770819}]})
 
 
 def convert_mask(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
@@ -314,7 +391,7 @@ CONVERT_MAP = {
     "polygon": convert_polygon,
     "polyline": convert_polyline,
     "points": convert_points,
-    # "cuboid": convert_cuboid, # ! Do not uncomment this line until the function is implemented.
+    "cuboid": convert_cuboid,
     "mask": convert_mask,
     "skeleton": convert_skeleton,
 }
