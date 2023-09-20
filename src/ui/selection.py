@@ -14,7 +14,7 @@ projects_transfer = Transfer(
 
 select_projects_button = Button("Select projects")
 select_projects_button.disable()
-change_selection_button = Button("Change selection")
+change_selection_button = Button("Change projects")
 change_selection_button.hide()
 
 card = Card(
