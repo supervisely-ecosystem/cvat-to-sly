@@ -446,39 +446,12 @@ def convert_and_upload(
             succesfully_uploaded = False
             continue
 
-        archive_name = sly.fs.get_file_name(task_archive_path)
-        sly_dataset = g.api.dataset.create(
-            sly_project.id, archive_name, change_name_if_conflict=True
+        # TODO: Depending on the data type, we need to upload images or videos.
+
+        upload_images_infos = upload_images_task(
+            task_archive_path, sly_project, image_names, image_paths, anns
         )
-
-        sly.logger.debug(
-            f"Created dataset {sly_dataset.name} in project {sly_project.name}."
-        )
-
-        sly.logger.info(f"Uploading {len(image_names)} images to Supervisely.")
-
-        for batched_image_names, batched_image_paths, batched_anns in zip(
-            sly.batched(image_names), sly.batched(image_paths), sly.batched(anns)
-        ):
-            uploaded_image_infos = g.api.image.upload_paths(
-                sly_dataset.id, batched_image_names, batched_image_paths
-            )
-
-            uploaded_images.extend(uploaded_image_infos)
-
-            uploaded_image_ids = [image_info.id for image_info in uploaded_image_infos]
-
-            sly.logger.info(
-                f"Uploaded {len(uploaded_image_ids)} images to Supervisely to dataset {sly_dataset.name}."
-            )
-
-            g.api.annotation.upload_anns(uploaded_image_ids, batched_anns)
-
-            sly.logger.info(f"Uploaded {len(batched_anns)} annotations to Supervisely.")
-
-        sly.logger.info(
-            f"Finished uploading images and annotations from arhive {task_archive_path} to Supervisely."
-        )
+        uploaded_images.extend(upload_images_infos)
 
     if sly_tags_in_task:
         sly.logger.debug("There were tags in the current task, will upload them.")
@@ -495,6 +468,48 @@ def convert_and_upload(
     sly.logger.debug(f"Updated project {project_name} in the projects table.")
 
     return succesfully_uploaded
+
+
+def upload_images_task(
+    task_archive_path: str,
+    sly_project: sly.ProjectInfo,
+    image_names: List[str],
+    image_paths: List[str],
+    anns: List[sly.Annotation],
+) -> List[sly.ImageInfo]:
+    archive_name = sly.fs.get_file_name(task_archive_path)
+    sly_dataset = g.api.dataset.create(
+        sly_project.id, archive_name, change_name_if_conflict=True
+    )
+
+    sly.logger.debug(
+        f"Created dataset {sly_dataset.name} in project {sly_project.name}."
+    )
+
+    sly.logger.info(f"Uploading {len(image_names)} images to Supervisely.")
+
+    for batched_image_names, batched_image_paths, batched_anns in zip(
+        sly.batched(image_names), sly.batched(image_paths), sly.batched(anns)
+    ):
+        uploaded_image_infos = g.api.image.upload_paths(
+            sly_dataset.id, batched_image_names, batched_image_paths
+        )
+
+        uploaded_image_ids = [image_info.id for image_info in uploaded_image_infos]
+
+        sly.logger.info(
+            f"Uploaded {len(uploaded_image_ids)} images to Supervisely to dataset {sly_dataset.name}."
+        )
+
+        g.api.annotation.upload_anns(uploaded_image_ids, batched_anns)
+
+        sly.logger.info(f"Uploaded {len(batched_anns)} annotations to Supervisely.")
+
+    sly.logger.info(
+        f"Finished uploading images and annotations from arhive {task_archive_path} to Supervisely."
+    )
+
+    return uploaded_image_infos
 
 
 def upload_tags(
