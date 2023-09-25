@@ -292,7 +292,6 @@ def convert_and_upload(
     sly.logger.debug(f"Retrieved project meta for {sly_project.name}.")
 
     succesfully_uploaded = True
-    uploaded_images = []
 
     for task_archive_path, task_data_type in task_archive_paths:
         unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
@@ -448,16 +447,19 @@ def convert_and_upload(
 
         # TODO: Depending on the data type, we need to upload images or videos.
 
-        upload_images_infos = upload_images_task(
-            task_archive_path, sly_project, image_names, image_paths, anns
-        )
-        uploaded_images.extend(upload_images_infos)
-
-    if sly_tags_in_task:
-        sly.logger.debug("There were tags in the current task, will upload them.")
-        upload_tags(uploaded_images, sly_project.id, sly_tags_in_task)
-    else:
-        sly.logger.debug("No tags were found in the current task, nothing to upload.")
+        if task_data_type == "imageset":
+            sly.logger.debug(f"Task data type is {task_data_type}, will upload images.")
+            upload_images_task(
+                task_archive_path,
+                sly_project,
+                image_names,
+                image_paths,
+                anns,
+                sly_tags_in_task,
+            )
+        elif task_data_type == "video":
+            sly.logger.debug(f"Task data type is {task_data_type}, will upload video.")
+            pass
 
     sly.logger.info(
         f"Finished copying project {project_name} from CVAT to Supervisely."
@@ -476,6 +478,7 @@ def upload_images_task(
     image_names: List[str],
     image_paths: List[str],
     anns: List[sly.Annotation],
+    sly_tags_in_task: Dict[str, List[sly.Tag]],
 ) -> List[sly.ImageInfo]:
     archive_name = sly.fs.get_file_name(task_archive_path)
     sly_dataset = g.api.dataset.create(
@@ -509,10 +512,16 @@ def upload_images_task(
         f"Finished uploading images and annotations from arhive {task_archive_path} to Supervisely."
     )
 
+    if sly_tags_in_task:
+        sly.logger.debug("There were tags in the current task, will upload them.")
+        upload_images_tags(uploaded_image_infos, sly_project.id, sly_tags_in_task)
+    else:
+        sly.logger.debug("No tags were found in the current task, nothing to upload.")
+
     return uploaded_image_infos
 
 
-def upload_tags(
+def upload_images_tags(
     uploaded_images: List[sly.ImageInfo],
     sly_project_id: int,
     sly_tags_in_task: Dict[str, List[sly.Tag]],
