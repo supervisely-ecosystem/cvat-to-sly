@@ -10,7 +10,16 @@ import src.globals as g
 # Entity of CVAT data: project or task.
 CVATData = namedtuple(
     "CVATData",
-    ["entity", "id", "name", "status", "owner_username", "labels_count", "url"],
+    [
+        "entity",
+        "data_type",
+        "id",
+        "name",
+        "status",
+        "owner_username",
+        "labels_count",
+        "url",
+    ],
 )
 
 # Exporter or importer format from CVAT API.
@@ -127,8 +136,11 @@ def cvat_data(**kwargs) -> Generator[CVATData, None, None]:
         # be used to open the project or task in the browser.
         url = url.replace("/api/", "/") if url else None
 
+        data_type = result.get("data_original_chunk_type")
+
         yield CVATData(
             entity=entity,
+            data_type=data_type,
             id=result.get("id"),
             name=result.get("name"),
             status=result.get("status"),

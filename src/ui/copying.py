@@ -1,7 +1,7 @@
 import os
 import shutil
 import supervisely as sly
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
 
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
@@ -170,24 +170,28 @@ def start_copying() -> None:
             task_archive_paths = []
 
             for task in cvat.cvat_data(project_id=project_id):
-                sly.logger.debug(f"Copying task with id: {task.id}")
+                data_type = task.data_type
+
+                sly.logger.debug(
+                    f"Copying task with id: {task.id}, data type: {data_type}"
+                )
                 if not g.STATE.continue_copying:
                     sly.logger.debug("Copying is stopped by the user.")
                     continue
 
                 project_name = g.STATE.project_names[project_id]
                 project_dir = os.path.join(
-                    g.ARCHIVE_DIR, f"{project_id}_{project_name}"
+                    g.ARCHIVE_DIR, f"{project_id}_{project_name}_{data_type}"
                 )
                 sly.fs.mkdir(project_dir)
-                task_filename = f"{task.id}_{task.name}.zip"
+                task_filename = f"{task.id}_{task.name}_{data_type}.zip"
 
                 task_path = os.path.join(project_dir, task_filename)
                 download_status = save_task_to_zip(task.id, task_path)
                 if download_status is False:
                     task_ids_with_errors.append(task.id)
                 else:
-                    task_archive_paths.append(task_path)
+                    task_archive_paths.append((task_path, data_type))
 
             if not task_archive_paths:
                 sly.logger.warning(
@@ -260,8 +264,20 @@ def start_copying() -> None:
 
 
 def convert_and_upload(
-    project_id: id, project_name: str, task_archive_paths: List[str]
+    project_id: id, project_name: str, task_archive_paths: List[Tuple[str, str]]
 ) -> bool:
+    """TODO: add summary
+
+    :param project_id: ID of the project in CVAT
+    :type project_id: id
+    :param project_name: name of the project in CVAT
+    :type project_name: str
+    :param task_archive_paths: list of tuples for each task, which containing path to the task archive and data type
+        possible data types: 'imageset', 'video'
+    :type task_archive_paths: List[Tuple[str, str]]
+    :return: status of the upload (True if the upload was successful, False otherwise)
+    :rtype: bool
+    """
     unpacked_project_path = os.path.join(g.UNPACKED_DIR, f"{project_id}_{project_name}")
     sly.logger.debug(f"Unpacked project path: {unpacked_project_path}")
 
@@ -278,7 +294,7 @@ def convert_and_upload(
     succesfully_uploaded = True
     uploaded_images = []
 
-    for task_archive_path in task_archive_paths:
+    for task_archive_path, task_data_type in task_archive_paths:
         unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
         unpacked_task_path = os.path.join(unpacked_project_path, unpacked_task_dir)
 
@@ -311,10 +327,14 @@ def convert_and_upload(
         sly_labels_in_task = defaultdict(list)
         sly_tags_in_task = defaultdict(list)
 
+        images_data = dict()
+
         for image in images:
             image_name = image.attrib["name"]
             image_height = int(image.attrib["height"])
             image_width = int(image.attrib["width"])
+
+            images_data[image_name] = (image_height, image_width)
 
             cvat_tags = image.findall("tag") or []
 
@@ -370,10 +390,20 @@ def convert_and_upload(
             image_names.append(image_name)
             image_paths.append(image_path)
 
-            image_np = sly.image.read(image_path)
-            height, width, _ = image_np.shape
-            image_size = (height, width)
-            del image_np
+            image_size = images_data.get(image_name)
+
+            if not image_size:
+                # For compatibility reasons in order to avoid errors if there was no
+                # image parameters in annotations.xml, we will read the image and get its size.
+                # Usually this not happens, but just to be sure.
+                sly.logger.debug(
+                    f"Can't find images dimension for image {image_path} from annotation, "
+                    "will read the file image..."
+                )
+                image_np = sly.image.read(image_path)
+                height, width, _ = image_np.shape
+                image_size = (height, width)
+                del image_np
 
             sly.logger.debug(
                 f"Image {image_name} has size (height, width): {image_size}."
