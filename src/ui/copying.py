@@ -2,7 +2,7 @@ import os
 import shutil
 import supervisely as sly
 from typing import List, Dict, Optional, Tuple
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
 import xml.etree.ElementTree as ET
@@ -10,6 +10,8 @@ import xml.etree.ElementTree as ET
 import src.globals as g
 import src.cvat as cvat
 import src.converters as converters
+
+ImageObject = namedtuple("ImageObject", ["name", "path", "size", "labels", "tags"])
 
 COLUMNS = [
     "COPYING STATUS",
@@ -294,172 +296,77 @@ def convert_and_upload(
     succesfully_uploaded = True
 
     for task_archive_path, task_data_type in task_archive_paths:
-        unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
-        unpacked_task_path = os.path.join(unpacked_project_path, unpacked_task_dir)
-
-        sly.fs.unpack_archive(task_archive_path, unpacked_task_path, remove_junk=True)
-        sly.logger.debug(f"Unpacked from {task_archive_path} to {unpacked_task_path}")
-
-        images_dir = os.path.join(unpacked_task_path, "images")
-        images_list = sly.fs.list_files(images_dir)
-
-        sly.logger.debug(f"Found {len(images_list)} images in {images_dir}.")
-
-        if not images_list:
-            sly.logger.warning(
-                f"No images found in {images_dir}, task will be skipped."
-            )
-            continue
-
-        annotations_xml_path = os.path.join(unpacked_task_path, "annotations.xml")
-        if not os.path.exists(annotations_xml_path):
-            sly.logger.warning(
-                f"Can't find annotations.xml file in {unpacked_task_path}, will upload images without labels."
-            )
-
-        tree = ET.parse(annotations_xml_path)
-        sly.logger.debug(f"Parsed annotations.xml from {annotations_xml_path}.")
-
-        images = tree.findall("image")
-        sly.logger.debug(f"Found {len(images)} images in annotations.xml.")
-
-        sly_labels_in_task = defaultdict(list)
-        sly_tags_in_task = defaultdict(list)
-
-        images_data = dict()
-
-        for image in images:
-            image_name = image.attrib["name"]
-            image_height = int(image.attrib["height"])
-            image_width = int(image.attrib["width"])
-
-            images_data[image_name] = (image_height, image_width)
-
-            cvat_tags = image.findall("tag") or []
-
-            sly.logger.debug(f"Found {len(cvat_tags)} tags in {image_name}.")
-
-            for cvat_tag in cvat_tags:
-                sly_tag = converters.convert_tag(cvat_tag.attrib)
-                sly_tags_in_task[image_name].append(sly_tag)
-
-                sly.logger.debug(
-                    f"Adding converted sly tag to the list of {image_name}."
-                )
-
-            geometries = list(converters.CONVERT_MAP.keys())
-            for geometry in geometries:
-                cvat_labels = image.findall(geometry) or []
-
-                sly.logger.debug(
-                    f"Found {len(cvat_labels)} with {geometry} geometry in {image_name}."
-                )
-
-                for cvat_label in cvat_labels:
-                    nodes = cvat_label.findall("points") or []
-                    sly_label = converters.CONVERT_MAP[geometry](
-                        cvat_label.attrib,
-                        image_height=image_height,
-                        image_width=image_width,
-                        nodes=nodes,
-                    )
-
-                    if isinstance(sly_label, list):
-                        # * If CVAT label was converted to multiple Supervisely labels (e.g. for points)
-                        # * we need to extend the list of labels for the image.
-                        sly_labels_in_task[image_name].extend(sly_label)
-                    else:
-                        # Otherwise we just append the label to the list.
-                        sly_labels_in_task[image_name].append(sly_label)
-                    sly.logger.debug(
-                        f"Adding converted sly label with geometry {geometry} to the list of {image_name}."
-                    )
-
-        sly.logger.debug(
-            f"Prepared {len(sly_labels_in_task)} images with labels for upload."
+        # * Unpacking archive, parsing annotations.xml and reading list of images.
+        images_et, images_paths = unpack_and_read_task(
+            task_archive_path, unpacked_project_path
         )
 
-        image_names = []
-        image_paths = []
-        anns = []
-
-        for image in images_list:
-            image_name = sly.fs.get_file_name_with_ext(image)
-            image_path = os.path.join(images_dir, image_name)
-            image_names.append(image_name)
-            image_paths.append(image_path)
-
-            image_size = images_data.get(image_name)
-
-            if not image_size:
-                # For compatibility reasons in order to avoid errors if there was no
-                # image parameters in annotations.xml, we will read the image and get its size.
-                # Usually this not happens, but just to be sure.
-                sly.logger.debug(
-                    f"Can't find images dimension for image {image_path} from annotation, "
-                    "will read the file image..."
-                )
-                image_np = sly.image.read(image_path)
-                height, width, _ = image_np.shape
-                image_size = (height, width)
-                del image_np
-
-            sly.logger.debug(
-                f"Image {image_name} has size (height, width): {image_size}."
-            )
-
-            labels = sly_labels_in_task.get(image_name)
-
-            if not labels:
-                ann = sly.Annotation(img_size=image_size)
-                sly.logger.debug(
-                    f"Created empty annotation for {image_name}, since no labels were found."
-                )
-            else:
-                # * Remove None values from the list of labels to avoid errors.
-                labels = [label for label in labels if label is not None]
-
-                project_meta = update_project_meta(
-                    project_meta, sly_project.id, labels=labels
-                )
-                ann = sly.Annotation(img_size=image_size, labels=labels)
-                sly.logger.debug(f"Created annotation for {image_name} with labels.")
-
-            anns.append(ann)
-
-            tags = sly_tags_in_task.get(image_name)
-            if tags:
-                sly.logger.debug(
-                    f"Image {image_name} has tags, will try to update project meta."
-                )
-
-                project_meta = update_project_meta(
-                    project_meta, sly_project.id, tags=tags
-                )
-
-        if len(image_names) != len(image_paths) != len(anns):
-            sly.logger.error(
-                f"Lengths of image_names, image_paths and anns are not equal. "
-                f"Task with data {task_archive_path} will be skipped."
-            )
-            succesfully_uploaded = False
-            continue
-
-        # TODO: Depending on the data type, we need to upload images or videos.
-
         if task_data_type == "imageset":
+            task_tags = dict()
+            image_objects = []
+
+            # * Convert all annotations to Supervisely format.
+            for image_et, image_path in zip(images_et, images_paths):
+                image_name = image_et.attrib["name"]
+                image_size, image_labels, image_tags = convert_annotation(
+                    image_et, image_name
+                )
+                task_tags[image_name] = image_tags
+                image_objects.append(
+                    ImageObject(
+                        name=image_name,
+                        path=image_path,
+                        size=image_size or image_size_from_file(image_path),
+                        labels=image_labels,
+                        tags=image_tags,
+                    )
+                )
+
+            images_names = []
+            images_paths = []
+            images_anns = []
+
+            for image_object in image_objects:
+                images_names.append(image_object.name)
+                images_paths.append(image_object.path)
+
+                sly.logger.debug(
+                    f"Image {image_object.name} has size (height, width): {image_object.size}."
+                )
+
+                ann = create_image_annotation(
+                    image_object.labels,
+                    image_object.size,
+                    image_object.name,
+                    sly_project,
+                    project_meta,
+                )
+                images_anns.append(ann)
+
+                if image_object.tags:
+                    sly.logger.debug(
+                        f"Image {image_object.name} has tags, will try to update project meta."
+                    )
+
+                    project_meta = update_project_meta(
+                        project_meta, sly_project.id, tags=image_object.tags
+                    )
+
             sly.logger.debug(f"Task data type is {task_data_type}, will upload images.")
+
+            # * Using archive name as dataset name.
+            dataset_name = sly.fs.get_file_name(task_archive_path)
             upload_images_task(
-                task_archive_path,
+                dataset_name,
                 sly_project,
-                image_names,
-                image_paths,
-                anns,
-                sly_tags_in_task,
+                images_names,
+                images_paths,
+                images_anns,
+                task_tags,
             )
         elif task_data_type == "video":
             sly.logger.debug(f"Task data type is {task_data_type}, will upload video.")
-            pass
+            # TODO: implement video upload
 
     sly.logger.info(
         f"Finished copying project {project_name} from CVAT to Supervisely."
@@ -472,17 +379,140 @@ def convert_and_upload(
     return succesfully_uploaded
 
 
+def convert_annotation(
+    image: ET.Element, image_name: str
+) -> Tuple[Tuple[int, int], List[sly.Label], List[sly.Tag]]:
+    image_height = int(image.attrib["height"])
+    image_width = int(image.attrib["width"])
+    image_size = (image_height, image_width)
+
+    cvat_tags = image.findall("tag") or []
+
+    sly.logger.debug(f"Found {len(cvat_tags)} tags in {image_name}.")
+
+    sly_tags = []
+    for cvat_tag in cvat_tags:
+        sly_tag = converters.convert_tag(cvat_tag.attrib)
+        sly_tags.append(sly_tag)
+
+        sly.logger.debug(f"Adding converted sly tag to the list of {image_name}.")
+
+    geometries = list(converters.CONVERT_MAP.keys())
+    sly_labels = []
+    for geometry in geometries:
+        cvat_labels = image.findall(geometry) or []
+
+        if cvat_labels:
+            sly.logger.debug(
+                f"Found {len(cvat_labels)} with {geometry} geometry in {image_name}."
+            )
+
+        for cvat_label in cvat_labels:
+            nodes = cvat_label.findall("points") or []
+            sly_label = converters.CONVERT_MAP[geometry](
+                cvat_label.attrib,
+                image_height=image_height,
+                image_width=image_width,
+                nodes=nodes,
+            )
+
+            if isinstance(sly_label, list):
+                # * If CVAT label was converted to multiple Supervisely labels (e.g. for points)
+                # * we need to extend the list of labels for the image.
+                sly_labels.extend(sly_label)
+            else:
+                # Otherwise we just append the label to the list.
+                sly_labels.append(sly_label)
+            sly.logger.debug(
+                f"Adding converted sly label with geometry {geometry} to the list of {image_name}."
+            )
+
+    return image_size, sly_labels, sly_tags
+
+
+def unpack_and_read_task(
+    task_archive_path: str, unpacked_project_path: str
+) -> Tuple[List[ET.Element], List[str]]:
+    unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
+    unpacked_task_path = os.path.join(unpacked_project_path, unpacked_task_dir)
+
+    sly.fs.unpack_archive(task_archive_path, unpacked_task_path, remove_junk=True)
+    sly.logger.debug(f"Unpacked from {task_archive_path} to {unpacked_task_path}")
+
+    images_dir = os.path.join(unpacked_task_path, "images")
+    images_list = sly.fs.list_files(images_dir)
+
+    sly.logger.debug(f"Found {len(images_list)} images in {images_dir}.")
+
+    if not images_list:
+        sly.logger.warning(f"No images found in {images_dir}, task will be skipped.")
+        return
+
+    annotations_xml_path = os.path.join(unpacked_task_path, "annotations.xml")
+    if not os.path.exists(annotations_xml_path):
+        sly.logger.warning(
+            f"Can't find annotations.xml file in {unpacked_task_path}, will upload images without labels."
+        )
+
+    tree = ET.parse(annotations_xml_path)
+    sly.logger.debug(f"Parsed annotations.xml from {annotations_xml_path}.")
+
+    images_et = tree.findall("image")
+    sly.logger.debug(f"Found {len(images_et)} images in annotations.xml.")
+
+    images_paths = [
+        os.path.join(images_dir, image_et.attrib["name"]) for image_et in images_et
+    ]
+
+    return images_et, images_paths
+
+
+def image_size_from_file(image_path: str) -> Tuple[int, int]:
+    sly.logger.debug(
+        f"Can't find images dimension for image {image_path} from annotation, "
+        "will read the file image..."
+    )
+    image_np = sly.image.read(image_path)
+    height, width, _ = image_np.shape
+    image_size = (height, width)
+    del image_np
+
+    return image_size
+
+
+def create_image_annotation(
+    labels: List[sly.Label],
+    image_size: Tuple[int, int],
+    image_name: str,
+    sly_project: sly.ProjectInfo,
+    project_meta: sly.ProjectMeta,
+) -> sly.Annotation:
+    if not labels:
+        ann = sly.Annotation(img_size=image_size)
+        sly.logger.debug(
+            f"Created empty annotation for {image_name}, since no labels were found."
+        )
+    else:
+        # * Remove None values from the list of labels to avoid errors.
+        labels = [label for label in labels if label is not None]
+
+        project_meta = update_project_meta(project_meta, sly_project.id, labels=labels)
+        ann = sly.Annotation(img_size=image_size, labels=labels)
+        sly.logger.debug(f"Created annotation for {image_name} with labels.")
+
+    return ann
+
+
 def upload_images_task(
-    task_archive_path: str,
+    dataset_name: str,
     sly_project: sly.ProjectInfo,
     image_names: List[str],
     image_paths: List[str],
     anns: List[sly.Annotation],
-    sly_tags_in_task: Dict[str, List[sly.Tag]],
+    sly_tags: Dict[str, List[sly.Tag]],
 ) -> List[sly.ImageInfo]:
-    archive_name = sly.fs.get_file_name(task_archive_path)
     sly_dataset = g.api.dataset.create(
-        sly_project.id, archive_name, change_name_if_conflict=True
+        sly_project.id, dataset_name, change_name_if_conflict=True
     )
 
     sly.logger.debug(
@@ -509,12 +539,12 @@ def upload_images_task(
         sly.logger.info(f"Uploaded {len(batched_anns)} annotations to Supervisely.")
 
     sly.logger.info(
-        f"Finished uploading images and annotations from arhive {task_archive_path} to Supervisely."
+        f"Finished uploading images and annotations for dataset {sly_dataset.name} to Supervisely."
     )
 
-    if sly_tags_in_task:
+    if sly_tags:
         sly.logger.debug("There were tags in the current task, will upload them.")
-        upload_images_tags(uploaded_image_infos, sly_project.id, sly_tags_in_task)
+        upload_images_tags(uploaded_image_infos, sly_project.id, sly_tags)
     else:
         sly.logger.debug("No tags were found in the current task, nothing to upload.")
 
@@ -524,7 +554,7 @@ def upload_images_task(
 def upload_images_tags(
     uploaded_images: List[sly.ImageInfo],
     sly_project_id: int,
-    sly_tags_in_task: Dict[str, List[sly.Tag]],
+    sly_tags: Dict[str, List[sly.Tag]],
 ) -> None:
     """Upload tags for the uploaded images to Supervisely.
 
@@ -532,8 +562,8 @@ def upload_images_tags(
     :type uploaded_images: List[sly.ImageInfo]
     :param sly_project_id: project ID in Supervisely
     :type sly_project_id: int
-    :param sly_tags_in_task: dictionary with tags for each image by image name
-    :type sly_tags_in_task: Dict[str, List[sly.Tag]]
+    :param sly_tags: dictionary with tags for each image by image name
+    :type sly_tags: Dict[str, List[sly.Tag]]
     """
     tag_data_for_upload = defaultdict(list)
 
@@ -542,7 +572,7 @@ def upload_images_tags(
     )
 
     for image_info in uploaded_images:
-        tags = sly_tags_in_task.get(image_info.name)
+        tags = sly_tags.get(image_info.name)
         if tags:
             for tag in tags:
                 tag_data_for_upload[tag.name].append(image_info.id)
