@@ -1,7 +1,7 @@
 import os
 import shutil
 import supervisely as sly
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
 from collections import defaultdict, namedtuple
 
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
@@ -283,17 +283,36 @@ def convert_and_upload(
     unpacked_project_path = os.path.join(g.UNPACKED_DIR, f"{project_id}_{project_name}")
     sly.logger.debug(f"Unpacked project path: {unpacked_project_path}")
 
-    # ! Create SLY project of two types.
+    images_project = None
+    videos_project = None
 
-    sly_project = g.api.project.create(
-        g.STATE.selected_workspace,
-        f"From CVAT {project_name}",
-        change_name_if_conflict=True,
-    )
-    sly.logger.debug(f"Created project {sly_project.name} in Supervisely.")
+    if any(task_data_type == "imageset" for _, task_data_type in task_archive_paths):
+        images_project = g.api.project.create(
+            g.STATE.selected_workspace,
+            f"From CVAT {project_name} (images)",
+            change_name_if_conflict=True,
+        )
+        sly.logger.debug(f"Created project {images_project.name} in Supervisely.")
 
-    project_meta = sly.ProjectMeta.from_json(g.api.project.get_meta(sly_project.id))
-    sly.logger.debug(f"Retrieved project meta for {sly_project.name}.")
+        images_project_meta = sly.ProjectMeta.from_json(
+            g.api.project.get_meta(images_project.id)
+        )
+
+        sly.logger.debug(f"Retrieved images project meta for {images_project.name}.")
+
+    if any(task_data_type == "video" for _, task_data_type in task_archive_paths):
+        videos_project = g.api.project.create(
+            g.STATE.selected_workspace,
+            f"From CVAT {project_name} (videos)",
+            change_name_if_conflict=True,
+        )
+        sly.logger.debug(f"Created project {videos_project.name} in Supervisely.")
+
+        videos_project_meta = sly.ProjectMeta.from_json(
+            g.api.project.get_meta(videos_project.id)
+        )
+
+        sly.logger.debug(f"Retrieved videos project meta for {videos_project.name}.")
 
     succesfully_uploaded = True
 
@@ -348,8 +367,8 @@ def convert_and_upload(
                     image_object.labels,
                     image_object.size,
                     image_object.name,
-                    sly_project,
-                    project_meta,
+                    images_project,
+                    images_project_meta,
                 )
                 images_anns.append(ann)
 
@@ -358,8 +377,8 @@ def convert_and_upload(
                         f"Image {image_object.name} has tags, will try to update project meta."
                     )
 
-                    project_meta = update_project_meta(
-                        project_meta, sly_project.id, tags=image_object.tags
+                    images_project_meta = update_project_meta(
+                        images_project_meta, images_project.id, tags=image_object.tags
                     )
 
             sly.logger.debug(f"Task data type is {task_data_type}, will upload images.")
@@ -368,7 +387,7 @@ def convert_and_upload(
             dataset_name = sly.fs.get_file_name(task_archive_path)
             upload_images_task(
                 dataset_name,
-                sly_project,
+                images_project,
                 images_names,
                 images_paths,
                 images_anns,
@@ -388,7 +407,10 @@ def convert_and_upload(
         f"Finished copying project {project_name} from CVAT to Supervisely."
     )
 
-    update_cells(project_id, new_url=sly_project.url)
+    if images_project:
+        update_cells(project_id, new_url=images_project.url)
+    if videos_project:
+        update_cells(project_id, new_url=videos_project.url)
 
     sly.logger.debug(f"Updated project {project_name} in the projects table.")
 
@@ -688,11 +710,29 @@ def update_cells(project_id: int, **kwargs) -> None:
     elif kwargs.get("new_url"):
         column_name = "SUPERVISELY URL"
         url = kwargs["new_url"]
-        new_value = f"<a href='{url}' target='_blank'>{url}</a>"
+        old_value = get_cell_value(project_id)
+        if old_value:
+            old_value += "<br>"
+        new_value = old_value + f"<a href='{url}' target='_blank'>{url}</a>"
 
     projects_table.update_cell_value(
         key_column_name, key_cell_value, column_name, new_value
     )
+
+
+def get_cell_value(
+    project_id: int, column: str = "SUPERVISELY URL"
+) -> Union[str, None]:
+    table_json_data = projects_table.get_json_data()
+
+    cell_column_idx = None
+    for column_idx, column_name in enumerate(table_json_data["columns"]):
+        if column_name == column:
+            cell_column_idx = column_idx
+
+    for row_idx, row_content in enumerate(table_json_data["data"]):
+        if row_content[1] == project_id:
+            return row_content[cell_column_idx]
 
 
 @stop_button.click
