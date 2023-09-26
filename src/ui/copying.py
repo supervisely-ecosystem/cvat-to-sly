@@ -414,13 +414,44 @@ def convert_and_upload(
 
             sly.logger.debug(f"Found {len(frames)} frames in the video.")
 
+            # TODO: Refactor this part.
+            # * It works, but needs to be refactored.
+
+            objects = []
+            for frame in frames:
+                frame: sly.Frame
+                for figure in frame.figures:
+                    figure: sly.VideoFigure
+                    video_object = figure.video_object
+                    if video_object not in objects:
+                        objects.append(video_object)
+
+                    obj_class = video_object.obj_class
+
+                    if obj_class not in videos_project_meta.obj_classes:
+                        sly.logger.debug(
+                            f"Class {obj_class.name} not found in project meta, will add it."
+                        )
+
+                        videos_project_meta = videos_project_meta.add_obj_class(
+                            obj_class
+                        )
+                        g.api.project.update_meta(
+                            videos_project.id, videos_project_meta
+                        )
+
+                        sly.logger.debug(
+                            f"Updated project meta for {videos_project.name} on instance."
+                        )
+
             source_name = f"{sly.fs.get_file_name(source)}.mp4"
             video_path = os.path.join(unpacked_project_path, source_name)
             sly.logger.debug(f"Will save video to {video_path}.")
             images_to_mp4(video_path, images_paths, image_size)
 
             frames = sly.FrameCollection(frames)
-            ann = sly.VideoAnnotation(image_size, len(frames), frames=frames)
+            objects = sly.VideoObjectCollection(objects)
+            ann = sly.VideoAnnotation(image_size, len(frames), objects, frames)
 
             sly.logger.debug(f"Created annotation for video in {video_path}.")
 
@@ -433,11 +464,17 @@ def convert_and_upload(
                 "Uploading video..."
             )
 
-            g.api.video.upload_path(dataset_info.id, source_name, video_path)
+            uploaded_video: sly.api.video_api.VideoInfo = g.api.video.upload_path(
+                dataset_info.id, source_name, video_path
+            )
 
             sly.logger.debug(
                 f"Uploaded video {source_name} to dataset {dataset_info.name}."
             )
+
+            g.api.video.annotation.append(uploaded_video.id, ann)
+
+            sly.logger.debug(f"Added annotation to video with ID {uploaded_video.id}.")
 
     sly.logger.info(
         f"Finished copying project {project_name} from CVAT to Supervisely."
@@ -474,7 +511,9 @@ def images_to_mp4(
         image = cv2.imread(image_path)
         video.write(image)
     video.release()
-    file_size = round(os.path.getsize(video_path) / 1024 / 1024, 2)
+    file_size = round(os.path.getsize(video_path) / 1024 / 1024, 3)
+    if file_size == 0:
+        sly.logger.warning(f"Video {video_path} has size 0 MB, it may be corrupted.")
 
     sly.logger.debug(f"Finished saving video, result size: {file_size} MB.")
 
