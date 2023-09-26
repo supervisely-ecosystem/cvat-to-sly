@@ -1,4 +1,5 @@
 import os
+import cv2
 import shutil
 import supervisely as sly
 from typing import List, Dict, Optional, Tuple, Union
@@ -304,6 +305,7 @@ def convert_and_upload(
         videos_project = g.api.project.create(
             g.STATE.selected_workspace,
             f"From CVAT {project_name} (videos)",
+            type=sly.ProjectType.VIDEOS,
             change_name_if_conflict=True,
         )
         sly.logger.debug(f"Created project {videos_project.name} in Supervisely.")
@@ -321,11 +323,15 @@ def convert_and_upload(
             f"Processing task archive {task_archive_path} with data type {task_data_type}."
         )
         # * Unpacking archive, parsing annotations.xml and reading list of images.
-        images_et, images_paths = unpack_and_read_task(
+        images_et, images_paths, source = unpack_and_read_task(
             task_archive_path, unpacked_project_path
         )
 
         sly.logger.debug(f"Parsed annotations and found {len(images_et)} images.")
+
+        # * Using archive name as dataset name.
+        dataset_name = sly.fs.get_file_name(task_archive_path)
+        sly.logger.debug(f"Will use {dataset_name} as dataset name.")
 
         if task_data_type == "imageset":
             sly.logger.debug(
@@ -337,7 +343,7 @@ def convert_and_upload(
             # * Convert all annotations to Supervisely format.
             for image_et, image_path in zip(images_et, images_paths):
                 image_name = image_et.attrib["name"]
-                image_size, image_labels, image_tags = convert_annotation(
+                image_size, image_labels, image_tags = convert_image_annotation(
                     image_et, image_name
                 )
                 task_tags[image_name] = image_tags
@@ -383,8 +389,6 @@ def convert_and_upload(
 
             sly.logger.debug(f"Task data type is {task_data_type}, will upload images.")
 
-            # * Using archive name as dataset name.
-            dataset_name = sly.fs.get_file_name(task_archive_path)
             upload_images_task(
                 dataset_name,
                 images_project,
@@ -401,7 +405,39 @@ def convert_and_upload(
             sly.logger.debug(
                 "Task data type is video, will convert annotations to Supervisely format."
             )
-            # TODO: implement video upload
+
+            frames = []
+            for image_et, image_path in zip(images_et, images_paths):
+                image_size, figures = convert_video_annotation(image_et, image_path)
+                frame_idx = int(image_et.attrib["id"])
+                frames.append(sly.Frame(frame_idx, figures=figures))
+
+            sly.logger.debug(f"Found {len(frames)} frames in the video.")
+
+            source_name = f"{sly.fs.get_file_name(source)}.mp4"
+            video_path = os.path.join(unpacked_project_path, source_name)
+            sly.logger.debug(f"Will save video to {video_path}.")
+            images_to_mp4(video_path, images_paths, image_size)
+
+            frames = sly.FrameCollection(frames)
+            ann = sly.VideoAnnotation(image_size, len(frames), frames=frames)
+
+            sly.logger.debug(f"Created annotation for video in {video_path}.")
+
+            dataset_info = g.api.dataset.create(
+                videos_project.id, dataset_name, change_name_if_conflict=True
+            )
+
+            sly.logger.debug(
+                f"Created dataset {dataset_info.name} in project {videos_project.name}."
+                "Uploading video..."
+            )
+
+            g.api.video.upload_path(dataset_info.id, source_name, video_path)
+
+            sly.logger.debug(
+                f"Uploaded video {source_name} to dataset {dataset_info.name}."
+            )
 
     sly.logger.info(
         f"Finished copying project {project_name} from CVAT to Supervisely."
@@ -417,14 +453,64 @@ def convert_and_upload(
     return succesfully_uploaded
 
 
-def convert_annotation(
-    image: ET.Element, image_name: str
-) -> Tuple[Tuple[int, int], List[sly.Label], List[sly.Tag]]:
-    image_height = int(image.attrib["height"])
-    image_width = int(image.attrib["width"])
+def images_to_mp4(
+    video_path: str, image_paths: List[str], image_size: Tuple[int, int], fps: int = 30
+):
+    sly.logger.debug(f"Starting to save images to video {video_path}...")
+    sly.logger.debug(f"Height, width: {image_size}, fps: {fps}")
+
+    video = cv2.VideoWriter(
+        video_path,
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        fps,
+        image_size[::-1],
+    )
+
+    sly.logger.debug(f"Adding {len(image_paths)} images to the video...")
+
+    for image_path in image_paths:
+        if not os.path.exists(image_path):
+            image_path = f"{image_path}.png"
+        image = cv2.imread(image_path)
+        video.write(image)
+    video.release()
+    file_size = round(os.path.getsize(video_path) / 1024 / 1024, 2)
+
+    sly.logger.debug(f"Finished saving video, result size: {file_size} MB.")
+
+
+def convert_video_annotation(image_et: ET.Element, image_name: str):
+    image_height = int(image_et.attrib["height"])
+    image_width = int(image_et.attrib["width"])
     image_size = (image_height, image_width)
 
-    cvat_tags = image.findall("tag") or []
+    geometries = list(converters.CONVERT_MAP.keys())
+    sly_labels = []
+    for geometry in geometries:
+        cvat_labels = image_et.findall(geometry) or []
+        if cvat_labels:
+            sly.logger.debug(
+                f"Found {len(cvat_labels)} with {geometry} geometry in {image_name}."
+            )
+
+        for cvat_label in cvat_labels:
+            frame_idx = int(image_et.attrib["id"])
+            sly_label = converters.CONVERT_MAP[geometry](
+                cvat_label.attrib, frame_idx=frame_idx
+            )
+            sly_labels.append(sly_label)
+
+    return image_size, sly_labels
+
+
+def convert_image_annotation(
+    image_et: ET.Element, image_name: str
+) -> Tuple[Tuple[int, int], List[sly.Label], List[sly.Tag]]:
+    image_height = int(image_et.attrib["height"])
+    image_width = int(image_et.attrib["width"])
+    image_size = (image_height, image_width)
+
+    cvat_tags = image_et.findall("tag") or []
 
     sly.logger.debug(f"Found {len(cvat_tags)} tags in {image_name}.")
 
@@ -438,7 +524,7 @@ def convert_annotation(
     geometries = list(converters.CONVERT_MAP.keys())
     sly_labels = []
     for geometry in geometries:
-        cvat_labels = image.findall(geometry) or []
+        cvat_labels = image_et.findall(geometry) or []
 
         if cvat_labels:
             sly.logger.debug(
@@ -495,6 +581,15 @@ def unpack_and_read_task(
     tree = ET.parse(annotations_xml_path)
     sly.logger.debug(f"Parsed annotations.xml from {annotations_xml_path}.")
 
+    source = None
+    meta = tree.find("meta")
+    if meta is not None:
+        task = meta.find("task")
+        if task is not None:
+            source = task.find("source")
+            if source is not None:
+                source = source.text
+
     images_et = tree.findall("image")
     sly.logger.debug(f"Found {len(images_et)} images in annotations.xml.")
 
@@ -502,7 +597,7 @@ def unpack_and_read_task(
         os.path.join(images_dir, image_et.attrib["name"]) for image_et in images_et
     ]
 
-    return images_et, images_paths
+    return images_et, images_paths, source
 
 
 def image_size_from_file(image_path: str) -> Tuple[int, int]:
@@ -723,7 +818,7 @@ def update_cells(project_id: int, **kwargs) -> None:
 def get_cell_value(
     project_id: int, column: str = "SUPERVISELY URL"
 ) -> Union[str, None]:
-    table_json_data = projects_table.get_json_data()
+    table_json_data = projects_table.get_json_data()["table_data"]
 
     cell_column_idx = None
     for column_idx, column_name in enumerate(table_json_data["columns"]):

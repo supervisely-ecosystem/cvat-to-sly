@@ -23,15 +23,21 @@ def convert_rectangle(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     # <box label="wheel" occluded="0" xtl="220.67" ytl="213.36" xbr="258.34" ybr="249.50" z_order="0">
     # </box>
 
-    sly_label = sly.Label(
-        geometry=sly.Rectangle(
-            top=int(float(cvat_label["ytl"])),
-            left=int(float(cvat_label["xtl"])),
-            bottom=int(float(cvat_label["ybr"])),
-            right=int(float(cvat_label["xbr"])),
-        ),
-        obj_class=obj_class,
+    geometry = sly.Rectangle(
+        top=int(float(cvat_label["ytl"])),
+        left=int(float(cvat_label["xtl"])),
+        bottom=int(float(cvat_label["ybr"])),
+        right=int(float(cvat_label["xbr"])),
     )
+
+    if kwargs.get("frame_idx") is not None:
+        video_object = sly.VideoObject(obj_class)
+        sly_label = sly.VideoFigure(video_object, geometry, kwargs.get("frame_idx"))
+    else:
+        sly_label = sly.Label(
+            geometry=geometry,
+            obj_class=obj_class,
+        )
 
     return sly_label
 
