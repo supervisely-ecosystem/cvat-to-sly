@@ -283,6 +283,8 @@ def convert_and_upload(
     unpacked_project_path = os.path.join(g.UNPACKED_DIR, f"{project_id}_{project_name}")
     sly.logger.debug(f"Unpacked project path: {unpacked_project_path}")
 
+    # ! Create SLY project of two types.
+
     sly_project = g.api.project.create(
         g.STATE.selected_workspace,
         f"From CVAT {project_name}",
@@ -296,12 +298,20 @@ def convert_and_upload(
     succesfully_uploaded = True
 
     for task_archive_path, task_data_type in task_archive_paths:
+        sly.logger.debug(
+            f"Processing task archive {task_archive_path} with data type {task_data_type}."
+        )
         # * Unpacking archive, parsing annotations.xml and reading list of images.
         images_et, images_paths = unpack_and_read_task(
             task_archive_path, unpacked_project_path
         )
 
+        sly.logger.debug(f"Parsed annotations and found {len(images_et)} images.")
+
         if task_data_type == "imageset":
+            sly.logger.debug(
+                "Data type is imageset, will convert annotations to Supervisely format."
+            )
             task_tags = dict()
             image_objects = []
 
@@ -364,8 +374,14 @@ def convert_and_upload(
                 images_anns,
                 task_tags,
             )
+
+            sly.logger.info(
+                f"Finished processing task archive {task_archive_path} with data type {task_data_type}."
+            )
         elif task_data_type == "video":
-            sly.logger.debug(f"Task data type is {task_data_type}, will upload video.")
+            sly.logger.debug(
+                "Task data type is video, will convert annotations to Supervisely format."
+            )
             # TODO: implement video upload
 
     sly.logger.info(
