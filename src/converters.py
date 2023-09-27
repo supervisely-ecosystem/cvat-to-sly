@@ -59,11 +59,17 @@ def convert_polygon(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     # </polygon>
 
     exterior = extract_points(cvat_label["points"])
+    geometry = sly.Polygon(exterior=exterior)
 
-    sly_label = sly.Label(
-        geometry=sly.Polygon(exterior=exterior),
-        obj_class=obj_class,
-    )
+    frame_idx = kwargs.get("frame_idx")
+    if frame_idx is not None:
+        video_object = sly.VideoObject(obj_class)
+        sly_label = sly.VideoFigure(video_object, geometry, frame_idx)
+    else:
+        sly_label = sly.Label(
+            geometry=geometry,
+            obj_class=obj_class,
+        )
 
     return sly_label
 
@@ -84,11 +90,17 @@ def convert_polyline(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     # </polyline>
 
     exterior = extract_points(cvat_label["points"])
+    geometry = sly.Polyline(exterior=exterior)
 
-    sly_label = sly.Label(
-        geometry=sly.Polyline(exterior=exterior),
-        obj_class=obj_class,
-    )
+    frame_idx = kwargs.get("frame_idx")
+    if frame_idx is not None:
+        video_object = sly.VideoObject(obj_class)
+        sly_label = sly.VideoFigure(video_object, geometry, frame_idx)
+    else:
+        sly_label = sly.Label(
+            geometry=sly.Polyline(exterior=exterior),
+            obj_class=obj_class,
+        )
 
     return sly_label
 
@@ -113,12 +125,21 @@ def convert_points(cvat_label: Dict[str, str], **kwargs) -> List[sly.Label]:
     points = extract_points(cvat_label["points"])
     sly_labels = []
 
-    for point in points:
-        sly_label = sly.Label(
-            geometry=sly.Point(row=point[0], col=point[1]),
-            obj_class=obj_class,
-        )
-        sly_labels.append(sly_label)
+    frame_idx = kwargs.get("frame_idx")
+    if frame_idx is not None:
+        video_object = sly.VideoObject(obj_class)
+        for point in points:
+            sly_label = sly.VideoFigure(
+                video_object, sly.Point(row=point[0], col=point[1]), frame_idx
+            )
+            sly_labels.append(sly_label)
+    else:
+        for point in points:
+            sly_label = sly.Label(
+                geometry=sly.Point(row=point[0], col=point[1]),
+                obj_class=obj_class,
+            )
+            sly_labels.append(sly_label)
 
     return sly_labels
 
@@ -156,6 +177,7 @@ def convert_cuboid(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     #                           NOTE: POINT 7 is not used in Supervisely
 
     return  # TODO: Remove this line after implementing the function on the API side.
+    # NOTE: It also needs Video implementation (as other converters).
 
     point_keys = [
         ("ytl1", "xtl1"),  # POINT 0
@@ -261,10 +283,17 @@ def convert_mask(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
         rle_values, ann_left, ann_top, ann_width, image_height, image_width
     )
 
-    sly_label = sly.Label(
-        geometry=sly.Bitmap(data=binary_mask),
-        obj_class=obj_class,
-    )
+    geometry = sly.Bitmap(data=binary_mask)
+
+    frame_idx = kwargs.get("frame_idx")
+    if frame_idx is not None:
+        video_object = sly.VideoObject(obj_class)
+        sly_label = sly.VideoFigure(video_object, geometry, frame_idx)
+    else:
+        sly_label = sly.Label(
+            geometry=geometry,
+            obj_class=obj_class,
+        )
 
     return sly_label
 
@@ -314,7 +343,14 @@ def convert_skeleton(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
         geometry_config=template,
     )
 
-    sly_label = sly.Label(geometry=sly.GraphNodes(sly_nodes), obj_class=obj_class)
+    geometry = sly.GraphNodes(sly_nodes)
+
+    frame_idx = kwargs.get("frame_idx")
+    if frame_idx is not None:
+        video_object = sly.VideoObject(obj_class)
+        sly_label = sly.VideoFigure(video_object, geometry, frame_idx)
+    else:
+        sly_label = sly.Label(geometry=geometry, obj_class=obj_class)
 
     return sly_label
 
