@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import supervisely as sly
@@ -8,13 +8,18 @@ from supervisely.geometry.point_location import PointLocation
 from supervisely.geometry.cuboid import CuboidFace
 
 
-def convert_rectangle(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
+def convert_rectangle(
+    cvat_label: Dict[str, str], **kwargs
+) -> Union[sly.Label, sly.VideoFigure]:
     """Converts a label with "box" geometry from CVAT format to Supervisely format.
+
+    Available kwargs:
+        - frame_idx: int, if passed, the label will be converted to VideoFigure
 
     :param cvat_label: label in CVAT format (from XML parser)
     :type cvat_label: Dict[str, str]
-    :return: label in Supervisely format
-    :rtype: sly.Label
+    :return: Supervisely Label or VideoFigure (depending on kwargs)
+    :rtype: Union[sly.Label, sly.VideoFigure]
     """
     class_name = cvat_label["label"] + "_rectangle"
     obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Rectangle)
@@ -43,13 +48,18 @@ def convert_rectangle(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     return sly_label
 
 
-def convert_polygon(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
+def convert_polygon(
+    cvat_label: Dict[str, str], **kwargs
+) -> Union[sly.Label, sly.VideoFigure]:
     """Converts a label with "polygon" geometry from CVAT format to Supervisely format.
+
+    Available kwargs:
+        - frame_idx: int, if passed, the label will be converted to VideoFigure
 
     :param cvat_label: label in CVAT format (from XML parser)
     :type cvat_label: Dict[str, str]
-    :return: label in Supervisely format
-    :rtype: sly.Label
+    :return: Supervisely Label or VideoFigure (depending on kwargs)
+    :rtype: Union[sly.Label, sly.VideoFigure]
     """
     class_name = cvat_label["label"] + "_polygon"
     obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Polygon)
@@ -74,13 +84,18 @@ def convert_polygon(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     return sly_label
 
 
-def convert_polyline(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
+def convert_polyline(
+    cvat_label: Dict[str, str], **kwargs
+) -> Union[sly.Label, sly.VideoFigure]:
     """Converts a label with "polyline" geometry from CVAT format to Supervisely format.
+
+    Available kwargs:
+        - frame_idx: int, if passed, the label will be converted to VideoFigure
 
     :param cvat_label: label in CVAT format (from XML parser)
     :type cvat_label: Dict[str, str]
-    :return: label in Supervisely format
-    :rtype: sly.Label
+    :return: Supervisely Label or VideoFigure (depending on kwargs)
+    :rtype: Union[sly.Label, sly.VideoFigure]
     """
     class_name = cvat_label["label"] + "_polyline"
     obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Polyline)
@@ -105,15 +120,20 @@ def convert_polyline(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     return sly_label
 
 
-def convert_points(cvat_label: Dict[str, str], **kwargs) -> List[sly.Label]:
+def convert_points(
+    cvat_label: Dict[str, str], **kwargs
+) -> Union[List[sly.Label], List[sly.VideoFigure]]:
     """Converts a label with "points" geometry from CVAT format to Supervisely format.
     Returns a list of labels, because CVAT "points" geometry can contain multiple points.
     Even if there is only one point, it is still a list.
 
+    Available kwargs:
+        - frame_idx: int, if passed, the label will be converted to VideoFigure
+
     :param cvat_label: label in CVAT format (from XML parser)
     :type cvat_label: Dict[str, str]
-    :return: list of labels in Supervisely format
-    :rtype: List[sly.Label]
+    :return: list of Supervisely Labels or VideoFigures (depending on kwargs)
+    :rtype: Union[List[sly.Label], List[sly.VideoFigure]]
     """
     class_name = cvat_label["label"] + "_point"
     obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Point)
@@ -150,7 +170,6 @@ def convert_cuboid(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
 
     :param cvat_label: label in CVAT format (from XML parser)
     :type cvat_label: Dict[str, str]
-    :raises NotImplementedError: the function is not implemented yet
     :return: label in Supervisely format
     :rtype: sly.Label
     """
@@ -249,13 +268,18 @@ def convert_cuboid(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     # [{"message":"Field 'faces' not found in Cuboid JSON data.","index":0,"entityId":23770819}]})
 
 
-def convert_mask(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
+def convert_mask(
+    cvat_label: Dict[str, str], **kwargs
+) -> Union[sly.Label, sly.VideoFigure]:
     """Converts a label with "mask" geometry from CVAT format to Supervisely format.
+
+    Available kwargs:
+        - frame_idx: int, if passed, the label will be converted to VideoFigure
 
     :param cvat_label: label in CVAT format (from XML parser)
     :type cvat_label: Dict[str, str]
-    :return: label in Supervisely format
-    :rtype: sly.Label
+    :return: Supervisely Label or VideoFigure (depending on kwargs)
+    :rtype: Union[sly.Label, sly.VideoFigure]
     """
     class_name = cvat_label["label"] + "_mask"
     obj_class = sly.ObjClass(name=class_name, geometry_type=sly.Bitmap)
@@ -298,13 +322,18 @@ def convert_mask(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
     return sly_label
 
 
-def convert_skeleton(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
+def convert_skeleton(
+    cvat_label: Dict[str, str], **kwargs
+) -> Union[sly.Label, sly.VideoFigure]:
     """Converts a label with "skeleton" geometry from CVAT format to Supervisely format.
+
+    Available kwargs:
+        - frame_idx: int, if passed, the label will be converted to VideoFigure
 
     :param cvat_label: label in CVAT format (from XML parser)
     :type cvat_label: Dict[str, str]
-    :return: label in Supervisely format
-    :rtype: sly.Label
+    :return: Supervisely Label or VideoFigure (depending on kwargs)
+    :rtype: Union[sly.Label, sly.VideoFigure]
     """
 
     class_name = cvat_label["label"] + "_graph"
