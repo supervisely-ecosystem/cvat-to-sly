@@ -2,7 +2,7 @@ import os
 import cv2
 import shutil
 import supervisely as sly
-from typing import List, Dict, Optional, Tuple, Union
+from typing import List, Dict, Optional, Tuple, Union, Literal
 from collections import defaultdict, namedtuple
 
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
@@ -269,7 +269,20 @@ def start_copying() -> None:
 def convert_and_upload(
     project_id: id, project_name: str, task_archive_paths: List[Tuple[str, str]]
 ) -> bool:
-    """TODO: add summary
+    """Unpacks the task archive, parses it's content, converts it to Supervisely format
+    and uploads it to Supervisely.
+
+    1. Checks if the task archive contains images or video.
+    2. Creates projects with corresponding data types in Supervisely (images or videos).
+    3. For each task:
+        3.1. Unpacks the task archive in a separate directory in project directory.
+        3.2. Parses annotations.xml and reads list of images.
+        3.3. Converts CVAT annotations to Supervisely format.
+        3.4. Depending on data type (images or video) creates specific annotations.
+        3.5. Uploads images or video to Supervisely.
+        3.6. Uploads annotations to Supervisely.
+    4. Updates the project in the projects table with new URLs.
+    5. Returns True if the upload was successful, False otherwise.
 
     :param project_id: ID of the project in CVAT
     :type project_id: id
@@ -473,6 +486,24 @@ def prepare_images_for_upload(
     images_project: sly.ProjectInfo,
     images_project_meta: sly.ProjectMeta,
 ) -> Tuple[List[str], List[str], List[sly.Annotation]]:
+    """Generates lists of images names, paths and annotations from the list of ImageObjects
+    for convenient uploading to Supervisely later using upload_paths() function.
+    Updates project meta with tags from ImageObjects.
+
+    :param images_objects: list of ImageObjects, each ImageObject contains:
+        - name of the image
+        - path to the image on the local machine
+        - size of the image (height, width) in pixels
+        - list of labels in Supervisely format
+        - list of tags in Supervisely format
+    :type images_objects: List[ImageObject]
+    :param images_project: ProjectInfo object for the project in Supervisely where images will be uploaded
+    :type images_project: sly.ProjectInfo
+    :param images_project_meta: project meta which will be updated with tags from ImageObjects
+    :type images_project_meta: sly.ProjectMeta
+    :return: list of images names, list of images paths, list of annotations
+    :rtype: Tuple[List[str], List[str], List[sly.Annotation]]
+    """
     images_names = []
     images_paths = []
     images_anns = []
@@ -507,16 +538,31 @@ def prepare_images_for_upload(
 
 
 def images_to_mp4(
-    video_path: str, image_paths: List[str], image_size: Tuple[int, int], fps: int = 30
-):
+    video_path: str, image_paths: List[str], video_size: Tuple[int, int], fps: int = 30
+) -> None:
+    """Saves the list of images to the video file.
+    NOTE: CVAT doesn't store original FPS of the video, so we use 30 FPS by default.
+
+    :param video_path: path, where video will be saved on the local machine
+    :type video_path: str
+    :param image_paths: list of paths to the images on the local machine
+        NOTE: order of the elements in list will be the order of the frames in the video
+    :type image_paths: List[str]
+    :param video_size: size of the video (height, width) in pixels
+        NOTE: (height, width) order IS NOT DEFAULT FOR CV2, it will be reversed in the function
+    :type image_size: Tuple[int, int]
+    :param fps: frames per second in the result video, defaults to 30
+    :type fps: int, optional
+    """
     sly.logger.debug(f"Starting to save images to video {video_path}...")
-    sly.logger.debug(f"Height, width: {image_size}, fps: {fps}")
+    sly.logger.debug(f"Height, width: {video_size}, fps: {fps}")
 
     video = cv2.VideoWriter(
         video_path,
         cv2.VideoWriter_fourcc(*"mp4v"),
         fps,
-        image_size[::-1],
+        # * CV2 uses (width, height) order for video size, while Supervisely uses (height, width).
+        video_size[::-1],
     )
 
     sly.logger.debug(f"Adding {len(image_paths)} images to the video...")
@@ -527,6 +573,9 @@ def images_to_mp4(
         image = cv2.imread(image_path)
         video.write(image)
     video.release()
+
+    # * Check if the video file is not corrupted for logging and debugging purposes.
+    # Can be safely removed.
     file_size = round(os.path.getsize(video_path) / 1024 / 1024, 3)
     if file_size == 0:
         sly.logger.warning(f"Video {video_path} has size 0 MB, it may be corrupted.")
@@ -535,15 +584,43 @@ def images_to_mp4(
 
 
 def convert_labels(
-    image_et: ET.Element, image_name: str, data_type: str
-) -> Tuple[Tuple[int, int], List[sly.Label], List[sly.Tag]]:
+    image_et: ET.Element, image_name: str, data_type: Literal["imageset", "video"]
+) -> Union[
+    Tuple[Tuple[int, int], List[sly.Label], List[sly.Tag]],
+    Tuple[Tuple[int, int], List[sly.VideoFigure], List[sly.VideoTag]],
+]:
+    """Converts CVAT annotations to Supervisely format both for images and videos
+    using cobvert map with specific convert functions for each geometry.
+    Returns different objects depending on the data type:
+    for "imageset" - Sly.Labels and Sly.Tags
+    for "video" - Sly.VideoFigures and Sly.VideoTags
+
+    :param image_et: image data parsed from CVAT XML annotation
+    :type image_et: ET.Element
+    :param image_name: name of the image
+    :type image_name: str
+    :param data_type: type of the task, possible values: "imageset", "video"
+    :type data_type: Literal["imageset", "video"]
+    :return: size of the image or video (height, width), list of labels or video figures, list of tags or video tags
+    :rtype: Union[
+        Tuple[Tuple[int, int], List[sly.Label], List[sly.Tag]],
+        Tuple[Tuple[int, int], List[sly.VideoFigure], List[sly.VideoTag]],
+        ]
+    """
     image_height = int(image_et.attrib["height"])
     image_width = int(image_et.attrib["width"])
     image_size = (image_height, image_width)
 
-    frame_idx = image_et.attrib.get("id")
-    if frame_idx is not None:
-        frame_idx = int(frame_idx)
+    if data_type == "video":
+        # * If data type is video, we need to get frame index from the image.
+        frame_idx = image_et.attrib.get("id")
+        if frame_idx is not None:
+            frame_idx = int(frame_idx)
+    else:
+        # Otherwise we set frame index to None and don't use it.
+        # * This is important because convert functions will handle data
+        # * as video if frame index is not None.
+        frame_idx = None
 
     cvat_tags = image_et.findall("tag") or []
 
@@ -568,6 +645,7 @@ def convert_labels(
             )
 
         for cvat_label in cvat_labels:
+            # * Nodes variable only exists for points geometry.
             nodes = cvat_label.findall("points") or []
             sly_label = converters.CONVERT_MAP[geometry](
                 cvat_label.attrib,
@@ -593,7 +671,20 @@ def convert_labels(
 
 def unpack_and_read_task(
     task_archive_path: str, unpacked_project_path: str
-) -> Tuple[List[ET.Element], List[str]]:
+) -> Tuple[List[ET.Element], List[str], str]:
+    """Unpacks the task archive from CVAT and reads it's content.
+    Parses annotations.xml and reads list of images in it.
+    Reads contents of the images directory and prepares a list of paths to the images.
+    Reads the "source" parameter in annotations.xml, it's needed to retrieve the
+    original name of the video file in CVAT.
+
+    :param task_archive_path: path to the task archive on the local machine
+    :type task_archive_path: str
+    :param unpacked_project_path: path to the directory where the task archive will be unpacked
+    :type unpacked_project_path: str
+    :return: list of images in annotations.xml, list of paths to the images, value of the "source" parameter
+    :rtype: Tuple[List[ET.Element], List[str], str]
+    """
     unpacked_task_dir = sly.fs.get_file_name(task_archive_path)
     unpacked_task_path = os.path.join(unpacked_project_path, unpacked_task_dir)
 
@@ -618,14 +709,12 @@ def unpack_and_read_task(
     tree = ET.parse(annotations_xml_path)
     sly.logger.debug(f"Parsed annotations.xml from {annotations_xml_path}.")
 
-    source = None
-    meta = tree.find("meta")
-    if meta is not None:
-        task = meta.find("task")
-        if task is not None:
-            source = task.find("source")
-            if source is not None:
-                source = source.text
+    # * Getting source parameter, which nested in "meta" -> "task" -> "source".
+    try:
+        source = tree.find("meta").find("task").find("source").text
+    except Exception:
+        sly.logger.debug(f"Source parameter was not found in {annotations_xml_path}.")
+        source = None
 
     images_et = tree.findall("image")
     sly.logger.debug(f"Found {len(images_et)} images in annotations.xml.")
@@ -638,6 +727,13 @@ def unpack_and_read_task(
 
 
 def image_size_from_file(image_path: str) -> Tuple[int, int]:
+    """Reads the image from the file and returns its size as a tuple (height, width).
+
+    :param image_path: path to the image on the local machine
+    :type image_path: str
+    :return: size of the image (height, width) in pixels
+    :rtype: Tuple[int, int]
+    """
     sly.logger.debug(
         f"Can't find images dimension for image {image_path} from annotation, "
         "will read the file image..."
@@ -657,6 +753,23 @@ def create_image_annotation(
     sly_project: sly.ProjectInfo,
     project_meta: sly.ProjectMeta,
 ) -> sly.Annotation:
+    """Creates Supervisely Annotation object for the image from given labels
+    and updates project meta with object classes from labels.
+
+    :param labels: list of Supervisely Label objects
+    :type labels: List[sly.Label]
+    :param image_size: size of the image (height, width)
+    :type image_size: Tuple[int, int]
+    :param image_name: name of the image
+    :type image_name: str
+    :param sly_project: project in Supervisely where images will be uploaded
+        for updating project meta on instance
+    :type sly_project: sly.ProjectInfo
+    :param project_meta: current project meta, which will be updated
+    :type project_meta: sly.ProjectMeta
+    :return: Supervisely Annotation object
+    :rtype: sly.Annotation
+    """
     if not labels:
         ann = sly.Annotation(img_size=image_size)
         sly.logger.debug(
@@ -681,6 +794,23 @@ def upload_images_task(
     anns: List[sly.Annotation],
     sly_tags: Dict[str, List[sly.Tag]],
 ) -> List[sly.ImageInfo]:
+    """Uploads images, annotations and tags to Supervisely by batches.
+
+    :param dataset_name: name of the dataset in Supervisely which will be created
+    :type dataset_name: str
+    :param sly_project: project in Supervisely where images will be uploaded
+    :type sly_project: sly.ProjectInfo
+    :param image_names: list of image names
+    :type image_names: List[str]
+    :param image_paths: list of paths to the images on the local machine
+    :type image_paths: List[str]
+    :param anns: list of Annotation objects for images
+    :type anns: List[sly.Annotation]
+    :param sly_tags: dictionary with tags for each image by image name
+    :type sly_tags: Dict[str, List[sly.Tag]]
+    :return: list of uploaded images as ImageInfo objects
+    :rtype: List[sly.ImageInfo]
+    """
     sly_dataset = g.api.dataset.create(
         sly_project.id, dataset_name, change_name_if_conflict=True
     )
@@ -849,6 +979,11 @@ def update_cells(project_id: int, **kwargs) -> None:
     elif kwargs.get("new_url"):
         column_name = "SUPERVISELY URL"
         url = kwargs["new_url"]
+
+        # When updating the cell with the URL we need to append the new URL to the old value
+        # for cases when one CVAT project was converted to multiple Supervisely projects.
+        # This usually happens when CVAT project contains both images and videos
+        # while Supervisely supports one data type per project.
         old_value = get_cell_value(project_id)
         if old_value:
             old_value += "<br>"
@@ -862,12 +997,24 @@ def update_cells(project_id: int, **kwargs) -> None:
 def get_cell_value(
     project_id: int, column: str = "SUPERVISELY URL"
 ) -> Union[str, None]:
+    """Returns value of the cell in the projects table by project ID and column name.
+    By default returns value of the "SUPERVISELY URL" column.
+
+    :param project_id: project ID in CVAT to find the table row
+    :type project_id: int
+    :param column: name of the columnm where to get the value, defaults to "SUPERVISELY URL"
+    :type column: str, optional
+    :return: value of the cell in the projects table or None if not found
+    :rtype: Union[str, None]
+    """
     table_json_data = projects_table.get_json_data()["table_data"]
 
+    # Find column index by column name.
     cell_column_idx = None
     for column_idx, column_name in enumerate(table_json_data["columns"]):
         if column_name == column:
             cell_column_idx = column_idx
+            break
 
     for row_idx, row_content in enumerate(table_json_data["data"]):
         if row_content[1] == project_id:
