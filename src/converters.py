@@ -30,9 +30,10 @@ def convert_rectangle(cvat_label: Dict[str, str], **kwargs) -> sly.Label:
         right=int(float(cvat_label["xbr"])),
     )
 
-    if kwargs.get("frame_idx") is not None:
+    frame_idx = kwargs.get("frame_idx")
+    if frame_idx is not None:
         video_object = sly.VideoObject(obj_class)
-        sly_label = sly.VideoFigure(video_object, geometry, kwargs.get("frame_idx"))
+        sly_label = sly.VideoFigure(video_object, geometry, frame_idx)
     else:
         sly_label = sly.Label(
             geometry=geometry,
@@ -373,7 +374,7 @@ def cvat_rle_to_binary_mask(
     return mask
 
 
-def convert_tag(cvat_tag: Dict[str, str]) -> sly.Tag:
+def convert_tag(cvat_tag: Dict[str, str], **kwargs) -> sly.Tag:
     """Converts a tag from CVAT format to Supervisely format.
 
     :param cvat_tag: tag in CVAT format (from XML parser)
@@ -387,7 +388,12 @@ def convert_tag(cvat_tag: Dict[str, str]) -> sly.Tag:
 
     tag_name = cvat_tag["label"]
     tag_meta = sly.TagMeta(tag_name, value_type=sly.TagValueType.NONE)
-    sly_tag = sly.Tag(tag_meta)
+
+    frame_idx = kwargs.get("frame_idx")
+    if frame_idx is not None:
+        sly_tag = sly.VideoTag(tag_meta, frame_range=(frame_idx, frame_idx))
+    else:
+        sly_tag = sly.Tag(tag_meta)
 
     return sly_tag
 
