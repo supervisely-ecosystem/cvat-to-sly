@@ -351,7 +351,7 @@ def convert_and_upload(
             sly.logger.debug(
                 "Data type is imageset, will convert annotations to Supervisely format."
             )
-            image_tags = dict()
+            task_tags = dict()
             image_objects = []
 
             # * Convert all annotations to Supervisely format.
@@ -360,7 +360,7 @@ def convert_and_upload(
                 image_size, image_labels, image_tags = convert_labels(
                     image_et, image_name, task_data_type
                 )
-                image_tags[image_name] = image_tags
+                task_tags[image_name] = image_tags
                 image_objects.append(
                     ImageObject(
                         name=image_name,
@@ -384,7 +384,7 @@ def convert_and_upload(
                 images_names,
                 images_paths,
                 images_anns,
-                image_tags,
+                task_tags,
             )
 
             sly.logger.info(
@@ -422,11 +422,15 @@ def convert_and_upload(
                 tags=video_tags,
             )
 
+            # Prepare the name for output video using source name from CVAT annotation.
+            # Prepare the path for output video using project directory and source name.
+            # Save the video to the path.
             source_name = f"{sly.fs.get_file_name(source)}.mp4"
             video_path = os.path.join(unpacked_project_path, source_name)
             sly.logger.debug(f"Will save video to {video_path}.")
             images_to_mp4(video_path, images_paths, video_size)
 
+            # Create Supervisely VideoAnnotation object using data from CVAT annotation.
             frames = sly.FrameCollection(video_frames)
             objects = sly.VideoObjectCollection(video_objects)
             tag_collection = sly.VideoTagCollection(video_tags)
@@ -520,19 +524,15 @@ def prepare_images_for_upload(
             image_object.labels,
             image_object.size,
             image_object.name,
-            images_project,
-            images_project_meta,
         )
         images_anns.append(ann)
 
-        if image_object.tags:
-            sly.logger.debug(
-                f"Image {image_object.name} has tags, will try to update project meta."
-            )
-
-            images_project_meta = update_project_meta(
-                images_project_meta, images_project.id, tags=image_object.tags
-            )
+        images_project_meta = update_project_meta(
+            images_project_meta,
+            images_project.id,
+            tags=image_object.tags,
+            labels=image_object.labels,
+        )
 
     return images_names, images_paths, images_anns
 
@@ -750,11 +750,8 @@ def create_image_annotation(
     labels: List[sly.Label],
     image_size: Tuple[int, int],
     image_name: str,
-    sly_project: sly.ProjectInfo,
-    project_meta: sly.ProjectMeta,
 ) -> sly.Annotation:
-    """Creates Supervisely Annotation object for the image from given labels
-    and updates project meta with object classes from labels.
+    """Creates Supervisely Annotation object for the image from given labels.
 
     :param labels: list of Supervisely Label objects
     :type labels: List[sly.Label]
@@ -762,11 +759,6 @@ def create_image_annotation(
     :type image_size: Tuple[int, int]
     :param image_name: name of the image
     :type image_name: str
-    :param sly_project: project in Supervisely where images will be uploaded
-        for updating project meta on instance
-    :type sly_project: sly.ProjectInfo
-    :param project_meta: current project meta, which will be updated
-    :type project_meta: sly.ProjectMeta
     :return: Supervisely Annotation object
     :rtype: sly.Annotation
     """
@@ -779,7 +771,6 @@ def create_image_annotation(
         # * Remove None values from the list of labels to avoid errors.
         labels = [label for label in labels if label is not None]
 
-        project_meta = update_project_meta(project_meta, sly_project.id, labels=labels)
         ann = sly.Annotation(img_size=image_size, labels=labels)
         sly.logger.debug(f"Created annotation for {image_name} with labels.")
 
@@ -933,15 +924,16 @@ def update_project_meta(
         sly.logger.debug(f"Will update {len(labels)} labels.")
         for label in labels:
             label: Union[sly.Label, sly.VideoObject]
-            if label.obj_class not in project_meta.obj_classes:
-                sly.logger.debug(
-                    f"Object class {label.obj_class.name} not found in project meta, will add it."
-                )
-                project_meta = project_meta.add_obj_class(label.obj_class)
-                g.api.project.update_meta(project_id, project_meta)
-                sly.logger.debug(
-                    f"Object class {label.obj_class.name} added, meta updated on Supervisely."
-                )
+            if label is not None:
+                if label.obj_class not in project_meta.obj_classes:
+                    sly.logger.debug(
+                        f"Object class {label.obj_class.name} not found in project meta, will add it."
+                    )
+                    project_meta = project_meta.add_obj_class(label.obj_class)
+                    g.api.project.update_meta(project_id, project_meta)
+                    sly.logger.debug(
+                        f"Object class {label.obj_class.name} added, meta updated on Supervisely."
+                    )
 
     if tags:
         sly.logger.debug(f"Will update {len(tags)} tags.")
