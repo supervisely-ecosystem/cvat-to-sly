@@ -5,7 +5,15 @@ import supervisely as sly
 from typing import List, Dict, Optional, Tuple, Union, Literal
 from collections import defaultdict, namedtuple
 
-from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
+from supervisely.app.widgets import (
+    Container,
+    Card,
+    Table,
+    Button,
+    Progress,
+    Text,
+    Flexbox,
+)
 import xml.etree.ElementTree as ET
 
 import migration_tool.src.globals as g
@@ -32,6 +40,8 @@ copy_button = Button("Copy", icon="zmdi zmdi-copy")
 stop_button = Button("Stop", icon="zmdi zmdi-stop", button_type="danger")
 stop_button.hide()
 
+buttons_flexbox = Flexbox([copy_button, stop_button])
+
 copying_progress = Progress()
 good_results = Text(status="success")
 bad_results = Text(status="error")
@@ -42,9 +52,8 @@ card = Card(
     title="3️⃣ Copying",
     description="Copy selected projects from CVAT to Supervisely.",
     content=Container(
-        [projects_table, copy_button, copying_progress, good_results, bad_results]
+        [projects_table, buttons_flexbox, copying_progress, good_results, bad_results]
     ),
-    content_top_right=stop_button,
     collapsable=True,
 )
 card.lock()
