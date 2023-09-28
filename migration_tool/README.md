@@ -22,7 +22,7 @@
 ℹ️ Currently conversion of Cuboid geometry is not supported, corresponding annotations will be skipped.<br>
 ℹ️ Supervisely doesn't support Ellipse geometry, this kind of labels will be skipped.<br>
 
-This application allows you to transfer multiple projects from CVAT instance to Supervisely instance, you can select which projects should be transferred, labels and tags will be converted automatically. You can preview the results in the table, which will show URLs to corresdponding projects in CVAT and Supervisely.<br>
+This application allows you to copy multiple projects from CVAT instance to Supervisely instance, you can select which projects should be copied, labels and tags will be converted automatically. You can preview the results in the table, which will show URLs to corresdponding projects in CVAT and Supervisely.<br>
 
 ## Preparation
 
@@ -67,11 +67,26 @@ NOTE: The app will not save your credentials, you will need to enter them every 
 
 ## How To Run
 
-Section for the app running. Describe how to run the app step by step.
+NOTE: In this section, we consider that you have already connected to CVAT and instance and have the necessary permissions to work with them. If you haven't done it yet, please refer to the [Preparation](#Preparation) section.<br>
+So, here is the step-by-step guide on how to use the app:
 
-**Step 1:** Describe actions in step.<br><br>
+**Step 1:** Select projects to copy<br><br>
+After connecting to the CVAT instance, list of the projects will be loaded into the widget automatically. You can select which projects you want to copy to Supervisely and then press the `Select projects` button.<br><br>
 
-**Step 2:** Describe actions in step.<br><br>
-<img src="placeholder for screenshot"/><br><br>
+![select_projects]()<br><br>
 
-After finishing using the app, don't forget to stop the app session manually in the App Sessions. The app will write information about the text prompt and CLIP score to the image metadata. You can find this information in the Image Properties - Info section of the image in the labeling tool.
+**Step 2:** Take a look on list of projects<br><br>
+After completing the `Step 1️⃣`, the application will retrieve information about the projects from CVAT API and show it in the table. Here you can find the links to the projects in CVAT, and after copying the projects to Supervisely, links to the projects in Supervisely will be added to the table too.<br><br>
+
+![projects_table]()<br><br>
+
+**Step 3:** Press the `Copy` button<br><br>
+Now you only need to press the `Copy` button and wait until the copying process is finished. You will see the statuses of the copying process for each project in the table. If any errors occur during the copying process, you will see the error status in the table. When the porcess is finished, you will see the total number of successfully copied projects and the total number of projects that failed to copy.<br><br>
+
+ℹ️ CVAT projects can contain both images and videos, but Supervisely project can contain only one type of data. If the CVAT project contains both images and videos, the application will create two projects in Supervisely: one with images and one with videos and you will find two links to the Supervisely projects in the table.<br><br>
+
+![copy_projects]()<br><br>
+
+![copy_projects2]()<br><br>
+
+The application will be stopped automatically after the copying process is finished.<br>
