@@ -72,20 +72,20 @@ NOTE: The app will not save your credentials, you will need to enter them every 
 NOTE: In this section, we consider that you have already connected to CVAT and instance and have the necessary permissions to work with them. If you haven't done it yet, please refer to the [Preparation](#Preparation) section.<br>
 So, here is the step-by-step guide on how to use the app:
 
-**Step 1:** Select projects to copy<br><br>
-After connecting to the CVAT instance, list of the projects will be loaded into the widget automatically. You can select which projects you want to copy to Supervisely and then press the `Select projects` button.<br><br>
+**Step 1:** Select projects to copy<br>
+After connecting to the CVAT instance, list of the projects will be loaded into the widget automatically. You can select which projects you want to copy to Supervisely and then press the `Select projects` button.<br>
 
-![select_projects](https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271299390-cfada065-8afd-4a9c-bf4c-4040925cc2b6.png)<br>
+![select_projects](https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271299390-cfada065-8afd-4a9c-bf4c-4040925cc2b6.png)
 
-**Step 2:** Take a look on list of projects<br><br>
+**Step 2:** Take a look on list of projects<br>
 After completing the `Step 1️⃣`, the application will retrieve information about the projects from CVAT API and show it in the table. Here you can find the links to the projects in CVAT, and after copying the projects to Supervisely, links to the projects in Supervisely will be added to the table too.<br>
 
 ![projects_table](https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271299395-180e1e41-d9f8-46bf-aac5-1caf349b9699.png)<br>
 
-**Step 3:** Press the `Copy` button<br><br>
-Now you only need to press the `Copy` button and wait until the copying process is finished. You will see the statuses of the copying process for each project in the table. If any errors occur during the copying process, you will see the error status in the table. When the porcess is finished, you will see the total number of successfully copied projects and the total number of projects that failed to copy.<br><br>
+**Step 3:** Press the `Copy` button<br>
+Now you only need to press the `Copy` button and wait until the copying process is finished. You will see the statuses of the copying process for each project in the table. If any errors occur during the copying process, you will see the error status in the table. When the porcess is finished, you will see the total number of successfully copied projects and the total number of projects that failed to copy.<br>
 
-ℹ️ CVAT projects can contain both images and videos, but Supervisely project can contain only one type of data. If the CVAT project contains both images and videos, the application will create two projects in Supervisely: one with images and one with videos and you will find two links to the Supervisely projects in the table.<br><br>
+ℹ️ CVAT projects can contain both images and videos, but Supervisely project can contain only one type of data. If the CVAT project contains both images and videos, the application will create two projects in Supervisely: one with images and one with videos and you will find two links to the Supervisely projects in the table.<br>
 
 ![copy_projects](https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271299400-bf33a936-49d6-4ee3-bb1c-2ab4955997ac.png)<br>
 
