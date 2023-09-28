@@ -2,9 +2,9 @@ import supervisely as sly
 
 from supervisely.app.widgets import Card, Text, Input, Field, Button, Container
 
-import src.globals as g
-import src.cvat as cvat
-import src.ui.selection as selection
+import migration_tool.src.globals as g
+import migration_tool.src.cvat as cvat
+import migration_tool.src.ui.selection as selection
 
 cvat_server_address_input = Input(
     minlength=10, placeholder="for example: http://localhost:8080"

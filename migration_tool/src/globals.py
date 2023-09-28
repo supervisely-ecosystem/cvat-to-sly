@@ -5,10 +5,25 @@ import supervisely as sly
 
 from dotenv import load_dotenv
 
+ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(ABSOLUTE_PATH)
+sly.logger.debug(f"Absolute path: {ABSOLUTE_PATH}, parent dir: {PARENT_DIR}")
+
 if sly.is_development():
     # * For convinient development, has no effect in the production.
-    load_dotenv("local.env")
-    load_dotenv(os.path.expanduser("~/supervisely.env"))
+    local_env_path = os.path.join(PARENT_DIR, "local.env")
+    supervisely_env_path = os.path.expanduser("~/supervisely.env")
+    sly.logger.debug(
+        "Running in development mode. Will load .env files... "
+        f"Local .env path: {local_env_path}, Supervisely .env path: {supervisely_env_path}"
+    )
+
+    if os.path.exists(local_env_path) and os.path.exists(supervisely_env_path):
+        sly.logger.debug("Both .env files exists. Will load them.")
+        load_dotenv(local_env_path)
+        load_dotenv(supervisely_env_path)
+    else:
+        sly.logger.warning("One of the .env files is missing. It may cause errors.")
 
 api: sly.Api = sly.Api.from_env()
 SLY_APP_DATA_DIR = sly.app.get_data_dir()
@@ -84,10 +99,6 @@ STATE = State()
 sly.logger.debug(
     f"Selected team: {STATE.selected_team}, selected workspace: {STATE.selected_workspace}"
 )
-
-ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__))
-PARENT_DIR = os.path.dirname(ABSOLUTE_PATH)
-sly.logger.debug(f"Absolute path: {ABSOLUTE_PATH}, parent dir: {PARENT_DIR}")
 
 # * Local path to the .env file with credentials, after downloading it from Supervisely.
 CVAT_ENV_FILE = os.path.join(PARENT_DIR, "cvat.env")

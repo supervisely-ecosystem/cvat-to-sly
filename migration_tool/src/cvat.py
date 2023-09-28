@@ -4,7 +4,7 @@ from collections import namedtuple
 import supervisely as sly
 from cvat_sdk.api_client import Configuration, ApiClient, exceptions
 
-import src.globals as g
+import migration_tool.src.globals as g
 
 
 # Entity of CVAT data: project or task.

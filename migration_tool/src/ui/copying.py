@@ -8,9 +8,9 @@ from collections import defaultdict, namedtuple
 from supervisely.app.widgets import Container, Card, Table, Button, Progress, Text
 import xml.etree.ElementTree as ET
 
-import src.globals as g
-import src.cvat as cvat
-import src.converters as converters
+import migration_tool.src.globals as g
+import migration_tool.src.cvat as cvat
+import migration_tool.src.converters as converters
 
 ImageObject = namedtuple("ImageObject", ["name", "path", "size", "labels", "tags"])
 

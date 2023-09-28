@@ -2,9 +2,9 @@ from typing import NamedTuple
 import supervisely as sly
 from supervisely.app.widgets import Card, Transfer, Button, Container
 
-import src.cvat as cvat
-import src.globals as g
-import src.ui.copying as copying
+import migration_tool.src.cvat as cvat
+import migration_tool.src.globals as g
+import migration_tool.src.ui.copying as copying
 
 projects_transfer = Transfer(
     filterable=True,

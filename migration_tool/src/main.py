@@ -2,9 +2,9 @@ import supervisely as sly
 
 from supervisely.app.widgets import Container
 
-import src.ui.keys as keys
-import src.ui.selection as selection
-import src.ui.copying as copying
+import migration_tool.src.ui.keys as keys
+import migration_tool.src.ui.selection as selection
+import migration_tool.src.ui.copying as copying
 
 layout = Container(widgets=[keys.card, selection.card, copying.card])
 
