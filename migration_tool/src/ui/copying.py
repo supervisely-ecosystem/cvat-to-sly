@@ -16,9 +16,10 @@ from supervisely.app.widgets import (
 )
 import xml.etree.ElementTree as ET
 
+from cvat.api import cvat_data, retreive_dataset
+from cvat.converters import convert_tag, CONVERT_MAP
 import migration_tool.src.globals as g
-import migration_tool.src.cvat as cvat
-import migration_tool.src.converters as converters
+
 
 ImageObject = namedtuple("ImageObject", ["name", "path", "size", "labels", "tags"])
 
@@ -69,7 +70,7 @@ def build_projects_table() -> None:
     projects_table.loading = True
     rows = []
 
-    for project in cvat.cvat_data():
+    for project in cvat_data():
         if project.id in g.STATE.selected_projects:
             rows.append(
                 [
@@ -143,7 +144,7 @@ def start_copying() -> None:
         :rtype: bool
         """
         sly.logger.debug("Trying to retreive task data from API...")
-        task_data = cvat.retreive_dataset(task_id=task.id)
+        task_data = retreive_dataset(task_id=task.id)
 
         with open(task_path, "wb") as f:
             shutil.copyfileobj(task_data, f)
@@ -181,7 +182,7 @@ def start_copying() -> None:
             task_ids_with_errors = []
             task_archive_paths = []
 
-            for task in cvat.cvat_data(project_id=project_id):
+            for task in cvat_data(project_id=project_id):
                 data_type = task.data_type
 
                 sly.logger.debug(
@@ -638,12 +639,12 @@ def convert_labels(
 
     sly_tags = []
     for cvat_tag in cvat_tags:
-        sly_tag = converters.convert_tag(cvat_tag.attrib, frame_idx=frame_idx)
+        sly_tag = convert_tag(cvat_tag.attrib, frame_idx=frame_idx)
         sly_tags.append(sly_tag)
 
         sly.logger.debug(f"Adding converted sly tag to the list of {image_name}.")
 
-    geometries = list(converters.CONVERT_MAP.keys())
+    geometries = list(CONVERT_MAP.keys())
     sly_labels = []
     for geometry in geometries:
         cvat_labels = image_et.findall(geometry) or []
@@ -656,7 +657,7 @@ def convert_labels(
         for cvat_label in cvat_labels:
             # * Nodes variable only exists for points geometry.
             nodes = cvat_label.findall("points") or []
-            sly_label = converters.CONVERT_MAP[geometry](
+            sly_label = CONVERT_MAP[geometry](
                 cvat_label.attrib,
                 image_height=image_height,
                 image_width=image_width,

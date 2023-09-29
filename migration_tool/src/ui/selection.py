@@ -2,9 +2,10 @@ from typing import NamedTuple
 import supervisely as sly
 from supervisely.app.widgets import Card, Transfer, Button, Container
 
-import migration_tool.src.cvat as cvat
 import migration_tool.src.globals as g
 import migration_tool.src.ui.copying as copying
+
+from cvat.api import cvat_data
 
 projects_transfer = Transfer(
     filterable=True,
@@ -35,7 +36,7 @@ def fill_transfer_with_projects() -> None:
     sly.logger.debug("Starting to build transfer widget with projects.")
     transfer_items = []
 
-    for project in cvat.cvat_data():
+    for project in cvat_data():
         g.STATE.project_names[project.id] = project.name
         transfer_items.append(
             Transfer.Item(key=project.id, label=f"[{project.id}] {project.name}")

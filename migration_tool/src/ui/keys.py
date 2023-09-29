@@ -3,8 +3,9 @@ import supervisely as sly
 from supervisely.app.widgets import Card, Text, Input, Field, Button, Container
 
 import migration_tool.src.globals as g
-import migration_tool.src.cvat as cvat
 import migration_tool.src.ui.selection as selection
+
+from cvat.api import check_connection
 
 cvat_server_address_input = Input(
     minlength=10, placeholder="for example: http://localhost:8080"
@@ -176,7 +177,7 @@ def try_to_connect() -> None:
         f"username: {g.STATE.cvat_username}."
     )
 
-    connection_status = cvat.check_connection()
+    connection_status = check_connection()
 
     if connection_status:
         connected()
@@ -194,7 +195,7 @@ if g.STATE.loaded_from_env:
     cvat_password_input.set_value(g.STATE.cvat_password)
     connect_button.enable()
 
-    connection_status = cvat.check_connection()
+    connection_status = check_connection()
 
     if connection_status:
         sly.logger.info(
