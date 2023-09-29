@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Local debug",
+            "name": "UI app",
             "type": "python",
             "request": "launch",
             "module": "uvicorn",
@@ -21,6 +21,18 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}:${PYTHONPATH}",
                 "LOG_LEVEL": "DEBUG"
+            }
+        },
+        {
+            "name": "Headless app",
+            "type": "python",
+            "request": "launch",
+            "program": "import_app/src/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${PYTHONPATH}",
+                "LOG_LEVEL": "DEBUG",
             }
         }
     ]

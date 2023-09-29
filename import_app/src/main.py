@@ -48,16 +48,17 @@ def _download_folder(remote_path: str) -> str:
 
 def _download_archive(remote_path: str) -> str:
     sly.logger.info(f"Starting download archive from {remote_path}...")
-    file_name = sly.fs.get_file_name(remote_path)
-    save_path = os.path.join(g.ARCHIVE_DIR, file_name)
+    archive_name = sly.fs.get_file_name_with_ext(remote_path)
+    save_path = os.path.join(g.ARCHIVE_DIR, archive_name)
     sly.logger.debug(f"Will download archive to {save_path}.")
     g.api.file.download(g.TEAM_ID, remote_path, save_path)
     sly.logger.debug(f"Archive downloaded to {save_path}.")
 
+    file_name = sly.fs.get_file_name(remote_path)
     unpack_path = os.path.join(g.UNPACKED_DIR, file_name)
     sly.logger.debug(f"Will unpack archive to {unpack_path}.")
     try:
-        sly.fs.unpack_archive(g.ARCHIVE_DIR, unpack_path)
+        sly.fs.unpack_archive(save_path, unpack_path)
     except Exception as e:
         raise RuntimeError(
             f"Can't unpack archive from {remote_path}. "
