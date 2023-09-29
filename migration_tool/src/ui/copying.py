@@ -361,25 +361,10 @@ def convert_and_upload(
             sly.logger.debug(
                 "Data type is imageset, will convert annotations to Supervisely format."
             )
-            task_tags = dict()
-            image_objects = []
 
-            # * Convert all annotations to Supervisely format.
-            for image_et, image_path in zip(images_et, images_paths):
-                image_name = image_et.attrib["name"]
-                image_size, image_labels, image_tags = convert_labels(
-                    image_et, image_name, task_data_type
-                )
-                task_tags[image_name] = image_tags
-                image_objects.append(
-                    ImageObject(
-                        name=image_name,
-                        path=image_path,
-                        size=image_size or image_size_from_file(image_path),
-                        labels=image_labels,
-                        tags=image_tags,
-                    )
-                )
+            task_tags, image_objects = convert_images_annotations(
+                images_et, images_paths
+            )
 
             # * Prepare lists of paths, names and build annotations from labels.
             images_names, images_paths, images_anns = prepare_images_for_upload(
@@ -406,22 +391,12 @@ def convert_and_upload(
                 "Task data type is video, will convert annotations to Supervisely format."
             )
 
-            video_frames = []
-            video_tags = []
-            video_objects = []
-
-            for image_et, image_path in zip(images_et, images_paths):
-                video_size, frame_figures, frame_tags = convert_labels(
-                    image_et, image_path, task_data_type
-                )
-                frame_idx = int(image_et.attrib["id"])
-                video_frames.append(sly.Frame(frame_idx, figures=frame_figures))
-                video_tags.extend(frame_tags)
-
-                for figure in frame_figures:
-                    video_object = figure.video_object
-                    if video_object not in video_objects:
-                        video_objects.append(video_object)
+            (
+                video_size,
+                video_frames,
+                video_objects,
+                video_tags,
+            ) = convert_video_annotations(images_et, images_paths)
 
             sly.logger.debug(f"Found {len(video_frames)} frames in the video.")
 
@@ -493,6 +468,55 @@ def convert_and_upload(
     sly.logger.debug(f"Updated project {project_name} in the projects table.")
 
     return succesfully_uploaded
+
+
+def convert_video_annotations(
+    images_et: List[ET.Element],
+    images_paths: List[str],
+) -> Tuple[Tuple[int, int], List[sly.VideoFigure], List[sly.VideoTag]]:
+    video_frames = []
+    video_objects = []
+    video_tags = []
+
+    for image_et, image_path in zip(images_et, images_paths):
+        video_size, frame_figures, frame_tags = convert_labels(
+            image_et, image_path, "video"
+        )
+        frame_idx = int(image_et.attrib["id"])
+        video_frames.append(sly.Frame(frame_idx, figures=frame_figures))
+        video_tags.extend(frame_tags)
+
+        for figure in frame_figures:
+            video_object = figure.video_object
+            if video_object not in video_objects:
+                video_objects.append(video_object)
+
+    return video_size, video_frames, video_objects, video_tags
+
+
+def convert_images_annotations(
+    images_et: List[ET.Element],
+    images_paths: List[str],
+) -> Tuple[Dict[str, List[sly.Tag]], List[ImageObject]]:
+    task_tags = dict()
+    image_objects = []
+    for image_et, image_path in zip(images_et, images_paths):
+        image_name = image_et.attrib["name"]
+        image_size, image_labels, image_tags = convert_labels(
+            image_et, image_name, "imageset"
+        )
+        task_tags[image_name] = image_tags
+        image_objects.append(
+            ImageObject(
+                name=image_name,
+                path=image_path,
+                size=image_size or image_size_from_file(image_path),
+                labels=image_labels,
+                tags=image_tags,
+            )
+        )
+
+    return task_tags, image_objects
 
 
 def prepare_images_for_upload(
