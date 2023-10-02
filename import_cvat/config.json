@@ -11,7 +11,7 @@
   "community_agent": true,
   "docker_image": "supervisely/base-py-sdk:6.72.125",
   "instance_version": "6.6.7",
-  "entrypoint": "python import_app/src/main.py",
+  "entrypoint": "python import_cvat/src/main.py",
   "port": 8000,
   "headless": true,
   "task_location": "workspace_tasks",
