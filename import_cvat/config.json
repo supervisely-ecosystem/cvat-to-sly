@@ -5,7 +5,7 @@
   "description": "Import images and videos with annotations in CVAT format.",
   "icon": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271901439-7fc29541-2d9f-435b-8bf6-350af4fa9c35.png",
   "icon_cover": true,
-  "poster": "",
+  "poster": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271944054-82620bbd-1d6e-45d6-aefc-60783795a1eb.png",
   "categories": ["images", "videos", "import"],
   "need_gpu": false,
   "community_agent": true,
