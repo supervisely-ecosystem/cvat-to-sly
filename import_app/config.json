@@ -1,0 +1,21 @@
+{
+  "name": "Import CVAT",
+  "type": "app",
+  "version": "2.0.0",
+  "description": "Import images and videos with annotations in CVAT format.",
+  "icon": "",
+  "icon_cover": true,
+  "poster": "",
+  "categories": ["images", "videos", "import"],
+  "need_gpu": false,
+  "community_agent": true,
+  "docker_image": "supervisely/base-py-sdk:6.72.125",
+  "instance_version": "6.6.7",
+  "entrypoint": "python import_app/src/main.py",
+  "port": 8000,
+  "headless": true,
+  "task_location": "workspace_tasks",
+  "context_menu": {
+    "target": ["ecosystem"]
+  }
+}
