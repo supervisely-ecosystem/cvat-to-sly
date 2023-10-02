@@ -7,7 +7,7 @@ from collections import namedtuple, defaultdict
 import supervisely as sly
 import xml.etree.ElementTree as ET
 
-from cvat.converters import convert_tag, CONVERT_MAP
+from converters import convert_tag, CONVERT_MAP
 
 ImageObject = namedtuple("ImageObject", ["name", "path", "size", "labels", "tags"])
 
