@@ -2,6 +2,7 @@ import os
 import shutil
 import supervisely as sly
 from typing import List, Tuple, Union
+from time import sleep
 
 from supervisely.app.widgets import (
     Container,
@@ -150,28 +151,27 @@ def start_copying() -> None:
         task_data = retreive_dataset(task_id=task.id)
 
         with open(task_path, "wb") as f:
-            try:
-                shutil.copyfileobj(task_data, f)
-            except Exception as e:
-                sly.logger.error(
-                    f"There was an error while downloading task {task_id}: {e}"
-                )
-            sly.app.show_dialog(
-                title="CVAT API Error",
-                description="CVAT API doesn't respond, the results may be incorrect.",
-            )
-            return False
+            shutil.copyfileobj(task_data, f)
 
-        sly.logger.debug(f"Saved data to path: {task_path}, will check it's size...")
+        sly.logger.info(f"Saved data to path: {task_path}, will check it's size...")
 
         # Check if the archive has non-zero size.
         if os.path.getsize(task_path) == 0:
             sly.logger.debug(f"The archive for task {task_id} is empty, removing it...")
             sly.fs.silent_remove(task_path)
             sly.logger.debug(f"The archive with path {task_path} was removed.")
+            sly.logger.info(
+                f"Will retry to download task {task_id}, because the archive is empty."
+            )
             if retry < 10:
                 # Try to download the task data again.
                 retry += 1
+                timer = 5
+                while timer > 0:
+                    sly.logger.info(f"Retry {retry} in {timer} seconds...")
+                    sleep(1)
+                    timer -= 1
+
                 sly.logger.info(f"Retry {retry} to download task {task_id}...")
                 save_task_to_zip(task_id, task_path, retry)
             else:
