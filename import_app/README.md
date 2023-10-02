@@ -1,5 +1,5 @@
 <div align="center" markdown>
-<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271228440-cde1aca9-b535-42ae-b1db-e277b626d128.png"/>
+<img src="POSTER!"/>
 
 # Convert and copy multiple CVAT projects into Supervisely at once
 
@@ -28,6 +28,7 @@ This application allows you convert images and videos with annotations from CVAT
 
 First, you need to export your data from CVAT referreing to [this guide](https://opencv.github.io/cvat/docs/getting_started/#export-dataset). Make sure that you have selected `CVAT for images 1.1` format for both images and videos, while exporting. Learn more about CVAt format in [official documentation](https://opencv.github.io/cvat/docs/manual/advanced/formats/format-cvat/#cvat-for-videos-export).<br>
 
+You can download an example of data for import [here]().<br>
 After exporting, ensure that you have the following structure of your data for running this app:
 
 ```text

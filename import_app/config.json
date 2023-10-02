@@ -3,7 +3,7 @@
   "type": "app",
   "version": "2.0.0",
   "description": "Import images and videos with annotations in CVAT format.",
-  "icon": "",
+  "icon": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271901439-7fc29541-2d9f-435b-8bf6-350af4fa9c35.png",
   "icon_cover": true,
   "poster": "",
   "categories": ["images", "videos", "import"],
