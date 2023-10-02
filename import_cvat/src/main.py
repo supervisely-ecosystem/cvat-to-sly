@@ -84,9 +84,7 @@ def process_image_tasks(project_name: str, images_tasks: List[str]):
         dataset_name = sly.fs.get_file_name(task_path)
         sly.logger.debug(f"Will use {dataset_name} as dataset name.")
 
-        task_tags, image_objects = convert_images_annotations(
-            images_et, images_paths, "imageset"
-        )
+        task_tags, image_objects = convert_images_annotations(images_et, images_paths)
 
         sly.logger.debug(
             f"Prepared labels and tags in Supervisely format for {len(image_objects)} images."
