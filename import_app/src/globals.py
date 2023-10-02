@@ -4,6 +4,8 @@ import supervisely as sly
 
 from dotenv import load_dotenv
 
+sly.logger.info(f"Python current working directory: {os.getcwd()}")
+
 ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(ABSOLUTE_PATH)
 sly.logger.debug(f"Absolute path: {ABSOLUTE_PATH}, parent dir: {PARENT_DIR}")
