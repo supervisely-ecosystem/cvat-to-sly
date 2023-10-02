@@ -149,8 +149,7 @@ def images_to_mp4(
     sly.logger.debug(f"Adding {len(image_paths)} images to the video...")
 
     for image_path in image_paths:
-        if not os.path.exists(image_path):
-            image_path = f"{image_path}.png"
+        image_path = f"{image_path}.PNG"
         image = cv2.imread(image_path)
         video.write(image)
     video.release()
