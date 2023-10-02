@@ -481,14 +481,14 @@ def convert_and_upload(
         except Exception:
             new_url = images_project.url
         sly.logger.debug(f"New URL for images project: {new_url}")
-        update_cells(project_id, new_url=images_project.url)
+        update_cells(project_id, new_url=new_url)
     if videos_project:
         try:
             new_url = sly.utils.abs_url(videos_project.url)
         except Exception:
             new_url = videos_project.url
         sly.logger.debug(f"New URL for videos project: {new_url}")
-        update_cells(project_id, new_url=videos_project.url)
+        update_cells(project_id, new_url=new_url)
 
     sly.logger.debug(f"Updated project {project_name} in the projects table.")
 
