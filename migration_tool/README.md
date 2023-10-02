@@ -92,3 +92,8 @@ Now you only need to press the `Copy` button and wait until the copying process 
 ![finished](https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271299408-807acfbf-87ed-45cf-8c82-3ab2d4bab09c.png)<br>
 
 The application will be stopped automatically after the copying process is finished.<br>
+
+## Acknowledgement
+
+- [CVAT github](https://github.com/opencv/cvat) ![GitHub Org's stars](https://img.shields.io/github/stars/opencv/cvat?style=social)
+- [CVAT documentation](https://opencv.github.io/cvat/docs/)
