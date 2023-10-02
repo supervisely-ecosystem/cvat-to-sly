@@ -2,7 +2,7 @@ import os
 from typing import List, Tuple
 import supervisely as sly
 
-import import_app.src.globals as g
+import globals as g
 import xml.etree.ElementTree as ET
 
 from cvat.tools import (
