@@ -5,7 +5,7 @@ import supervisely as sly
 import import_app.src.globals as g
 import xml.etree.ElementTree as ET
 
-from migration_tool.src.ui.copying import (
+from cvat.tools import (
     convert_images_annotations,
     convert_video_annotations,
     prepare_images_for_upload,
@@ -93,12 +93,13 @@ def process_image_tasks(project_name: str, images_tasks: List[str]):
         )
 
         images_names, images_paths, images_anns = prepare_images_for_upload(
-            image_objects, images_project, images_project_meta
+            g.api, image_objects, images_project, images_project_meta
         )
 
         sly.logger.debug(f"Prepared {len(images_names)} images for upload.")
 
         uploaded_images = upload_images_task(
+            g.api,
             dataset_name,
             images_project,
             images_names,
@@ -152,6 +153,7 @@ def process_video_tasks(project_name: str, videos_tasks: List[str]):
         sly.logger.debug(f"Found {len(video_frames)} frames in the video.")
 
         update_project_meta(
+            g.api,
             videos_project_meta,
             videos_project.id,
             labels=video_objects,
