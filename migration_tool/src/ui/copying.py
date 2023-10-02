@@ -284,7 +284,7 @@ def start_copying() -> None:
         "Will stop the application."
     )
 
-    from src.main import app
+    from migration_tool.src.main import app
 
     app.stop()
 
