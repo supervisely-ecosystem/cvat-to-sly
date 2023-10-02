@@ -84,11 +84,11 @@ and project with videos in Supervisely, containing one dataset with images and a
 
 **Step 1:** Run the app<br>
 
-<img src=""/><br>
+<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271954839-e180b28e-def0-4e74-943b-2f65e0f229a9.png"/><br>
 
 **Step 2:** Drag and drop the archive or select it in Team Files<br>
 
-<img src=""/><br>
+<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271954855-5ac6809d-6663-44cb-b027-8c2ea26d8303.png"/><br>
 
 **Step 3:** Press the `Run` button<br>
 
@@ -96,11 +96,9 @@ and project with videos in Supervisely, containing one dataset with images and a
 
 **Step 1:** Run the app<br>
 
-<img src=""/><br>
-
 **Step 2:** Drag and drop the folder or select it in Team Files<br>
 
-<img src=""/><br>
+<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271954859-b0455c99-c59c-481b-8793-caf02f308a64.png"/><br>
 
 **Step 3:** Press the `Run` button<br>
 
