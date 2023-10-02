@@ -12,19 +12,16 @@
 [![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/cvat-to-sly/migration_tool)
 [![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervise.ly/slack)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/cvat-to-sly/migration_tool)
-[![views](https://app.supervise.ly/img/badges/views/supervisely-ecosystem/cvat-to-sly_migration_tool.png)](https://supervise.ly)
-[![runs](https://app.supervise.ly/img/badges/runs/supervisely-ecosystem/cvat-to-sly_migration_tool.png)](https://supervise.ly)
+[![views](https://app.supervise.ly/img/badges/views/supervisely-ecosystem/cvat-to-sly/migration_tool.png)](https://supervise.ly)
+[![runs](https://app.supervise.ly/img/badges/runs/supervisely-ecosystem/cvat-to-sly/migration_tool.png)](https://supervise.ly)
 
 </div>
 
 ## Overview
 
-ℹ️ Currently conversion of Cuboid geometry is not supported, corresponding annotations will be skipped.<br>
-ℹ️ Supervisely doesn't support Ellipse geometry, this kind of labels will be skipped.<br>
-
 This application allows you to copy multiple projects from CVAT instance to Supervisely instance, you can select which projects should be copied, labels and tags will be converted automatically. You can preview the results in the table, which will show URLs to corresdponding projects in CVAT and Supervisely.<br>
 
-\*️⃣ If you want to upload data, which was already exported from CVAT instance, you can use this [Import CVAT](https://ecosystem.supervisely.com/apps/import-cvat) app from Supervisely Ecosystem.<br>
+\*️⃣ If you want to upload data, which was already exported from CVAT instance, you can use this [Import CVAT](https://ecosystem.supervisely.com/apps/cvat-to-sly/import_cvat) app from Supervisely Ecosystem.<br>
 
 ## Preparation
 
@@ -88,6 +85,9 @@ After completing the `Step 1️⃣`, the application will retrieve information a
 Now you only need to press the `Copy` button and wait until the copying process is finished. You will see the statuses of the copying process for each project in the table. If any errors occur during the copying process, you will see the error status in the table. When the porcess is finished, you will see the total number of successfully copied projects and the total number of projects that failed to copy.<br>
 
 ℹ️ CVAT projects can contain both images and videos, but Supervisely project can contain only one type of data. If the CVAT project contains both images and videos, the application will create two projects in Supervisely: one with images and one with videos and you will find two links to the Supervisely projects in the table.<br>
+
+ℹ️ Currently conversion of Cuboid geometry is not supported, corresponding annotations will be skipped.<br>
+ℹ️ Supervisely doesn't support Ellipse geometry, this kind of labels will be skipped.<br>
 
 ![copy_projects](https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271299400-bf33a936-49d6-4ee3-bb1c-2ab4955997ac.png)<br>
 

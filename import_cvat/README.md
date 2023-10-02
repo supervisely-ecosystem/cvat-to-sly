@@ -9,22 +9,19 @@
   <a href="#How-To-Run">How To Run</a>
 </p>
 
-[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/cvat-to-sly/import_app)
+[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/cvat-to-sly/import_cvat)
 [![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervise.ly/slack)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/cvat-to-sly/import_app)
-[![views](https://app.supervise.ly/img/badges/views/supervisely-ecosystem/cvat-to-sly_import_app.png)](https://supervise.ly)
-[![runs](https://app.supervise.ly/img/badges/runs/supervisely-ecosystem/cvat-to-sly_import_app.png)](https://supervise.ly)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/cvat-to-sly/import_cvat)
+[![views](https://app.supervise.ly/img/badges/views/supervisely-ecosystem/cvat-to-sly/import_cvat.png)](https://supervise.ly)
+[![runs](https://app.supervise.ly/img/badges/runs/supervisely-ecosystem/cvat-to-sly/import_cvat.png)](https://supervise.ly)
 
 </div>
 
 ## Overview
 
-ℹ️ Currently conversion of Cuboid geometry is not supported, corresponding annotations will be skipped.<br>
-ℹ️ Supervisely doesn't support Ellipse geometry, this kind of labels will be skipped.<br>
-
 This application allows you convert images and videos with annotations from CVAT format to Supervisely format for multiple projects at once using archive or folder with projects in CVAT format (`CVAT for images 1.1` both for images and videos).<br>
 
-\*️⃣ If you want to copy projects directly from CVAT instance you can use fully automated [CVAT to Supervisely Migration Tool](https://ecosystem.supervisely.com/apps/cvat-to-supervisely-migration-tool) app from Supervisely Ecosystem.<br>
+\*️⃣ If you want to copy projects directly from CVAT instance you can use fully automated [CVAT to Supervisely Migration Tool](https://ecosystem.supervisely.com/apps/cvat-to-sly/migration_tool) app from Supervisely Ecosystem.<br>
 
 ## Preparation
 
@@ -103,6 +100,9 @@ and project with videos in Supervisely, containing one dataset with images and a
 **Step 3:** Press the `Run` button<br>
 
 After completing the `Step 3️⃣`, the application will start converting and copying your projects to Supervisely, after completing the process the application will automatically stops.<br>
+
+ℹ️ Currently conversion of Cuboid geometry is not supported, corresponding annotations will be skipped.<br>
+ℹ️ Supervisely doesn't support Ellipse geometry, this kind of labels will be skipped.<br>
 
 ## Acknowledgement
 
