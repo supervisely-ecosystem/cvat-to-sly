@@ -5,7 +5,7 @@ from supervisely.app.widgets import Card, Transfer, Button, Container
 import migration_tool.src.globals as g
 import migration_tool.src.ui.copying as copying
 
-from cvat.api import cvat_data
+from migration_tool.src.cvat_api import cvat_data
 
 projects_transfer = Transfer(
     filterable=True,

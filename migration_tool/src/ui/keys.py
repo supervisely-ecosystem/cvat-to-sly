@@ -5,7 +5,7 @@ from supervisely.app.widgets import Card, Text, Input, Field, Button, Container
 import migration_tool.src.globals as g
 import migration_tool.src.ui.selection as selection
 
-from cvat.api import check_connection
+from migration_tool.src.cvat_api import check_connection
 
 cvat_server_address_input = Input(
     minlength=10, placeholder="for example: http://localhost:8080"

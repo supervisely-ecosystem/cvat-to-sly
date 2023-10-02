@@ -5,7 +5,7 @@ import supervisely as sly
 import globals as g
 import xml.etree.ElementTree as ET
 
-from tools import (
+from converters import (
     convert_images_annotations,
     convert_video_annotations,
     prepare_images_for_upload,
