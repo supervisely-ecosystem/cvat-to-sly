@@ -24,6 +24,8 @@
 
 This application allows you to copy multiple projects from CVAT instance to Supervisely instance, you can select which projects should be copied, labels and tags will be converted automatically. You can preview the results in the table, which will show URLs to corresdponding projects in CVAT and Supervisely.<br>
 
+\*️⃣ If you want to upload data, which was already exported from CVAT instance, you can use this [Import CVAT](https://ecosystem.supervisely.com/apps/import-cvat) app from Supervisely Ecosystem.<br>
+
 ## Preparation
 
 In order to run the app, you need to obtain credentials to work with CVAT API. You will need the following information:
