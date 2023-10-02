@@ -16,6 +16,6 @@
   "headless": true,
   "task_location": "workspace_tasks",
   "context_menu": {
-    "target": ["ecosystem"]
+    "target": ["files_file", "files_folder"]
   }
 }
