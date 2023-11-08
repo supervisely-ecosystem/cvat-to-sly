@@ -1,5 +1,5 @@
 <div align="center" markdown>
-<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/279370909-385503d2-81be-4e46-8fe6-62f91c14269a.png"/>
+<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/281421849-373e97d9-9f7c-403b-96c5-4a85a69f310b.png"/>
 
 # Convert and copy multiple CVAT projects into Supervisely at once
 
