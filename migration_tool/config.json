@@ -5,10 +5,10 @@
   "description": "Convert and copy multiple CVAT projects into Supervisely at once.",
   "docker_image": "supervisely/base-py-sdk:6.72.125",
   "categories": ["images", "videos", "import"],
-  "icon": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271213773-c08d0129-d8aa-43bc-a968-298358a20e1c.png",
+  "icon": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/281421800-1a1a966f-034c-4851-a881-e1fbf5cea66f.png",
   "icon_cover": true,
   "headless": false,
-  "poster": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/279370909-385503d2-81be-4e46-8fe6-62f91c14269a.png",
+  "poster": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/281421849-373e97d9-9f7c-403b-96c5-4a85a69f310b.png",
   "entrypoint": "python -m uvicorn migration_tool.src.main:app --host 0.0.0.0 --port 8000",
   "port": 8000,
   "context_menu": {
