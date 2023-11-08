@@ -4,7 +4,7 @@ Use migration tool to automatically convert your CVAT projects to Supervisely fo
 
 1. [CVAT to Supervisely Migration Tool](./migration_tool/README.md)
 
-<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/271228440-cde1aca9-b535-42ae-b1db-e277b626d128.png"/>
+<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/281421849-373e97d9-9f7c-403b-96c5-4a85a69f310b.png"/>
 
 2. [Import CVAT](./import_cvat/README.md)
 
