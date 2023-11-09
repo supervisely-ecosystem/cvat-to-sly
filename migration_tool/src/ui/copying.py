@@ -173,7 +173,7 @@ def start_copying() -> None:
                     timer -= 1
 
                 sly.logger.info(f"Retry {retry} to download task {task_id}...")
-                save_task_to_zip(task_id, task_path, retry)
+                return save_task_to_zip(task_id, task_path, retry)
             else:
                 # If the archive is empty after 10 retries, return False.
                 sly.logger.error(f"Can't download task {task_id} after 10 retries.")
