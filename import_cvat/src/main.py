@@ -80,8 +80,7 @@ def process_image_tasks(project_name: str, images_tasks: List[str]):
         images_et, images_paths = read_task_data(task_path)
 
         sly.logger.debug(f"Read {len(images_paths)} images from {task_path}")
-
-        dataset_name = sly.fs.get_file_name(task_path)
+        dataset_name = sly.fs.get_file_name(os.path.normpath(task_path))
         sly.logger.debug(f"Will use {dataset_name} as dataset name.")
 
         task_tags, image_objects = convert_images_annotations(images_et, images_paths)
