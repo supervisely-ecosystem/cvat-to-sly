@@ -3,7 +3,7 @@
   "type": "app",
   "version": "2.0.0",
   "description": "Import images and videos with annotations in CVAT format.",
-  "icon": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/281444676-d45cfa78-30ca-43d2-b015-0a11d36913c9.png",
+  "icon": "https://github.com/supervisely-ecosystem/cvat-to-sly/assets/119248312/68d2ff00-df3a-47d3-8891-24e25a172d6e",
   "icon_cover": true,
   "poster": "https://github-production-user-asset-6210df.s3.amazonaws.com/118521851/281444746-cf7e34e0-6fd6-4ffb-9db0-50c4d8170fe9.png",
   "categories": ["images", "videos", "import"],
