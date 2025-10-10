@@ -9,7 +9,7 @@
   <a href="#How-To-Run">How To Run</a>
 </p>
 
-[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](../../../../supervisely-ecosystem/cvat-to-sly/import_cvat)
+[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](../../../../../supervisely-ecosystem/cvat-to-sly/import_cvat)
 [![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervisely.com/slack)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/cvat-to-sly)
 [![views](https://app.supervisely.com/img/badges/views/supervisely-ecosystem/cvat-to-sly/import_cvat.png)](https://supervisely.com)
@@ -21,7 +21,7 @@
 
 This application allows you convert images and videos with annotations from CVAT format to Supervisely format for multiple projects at once using archive or folder with projects in CVAT format (`CVAT for images 1.1` both for images and videos).<br>
 
-\*️⃣ If you want to copy projects directly from CVAT instance you can use fully automated [CVAT to Supervisely Migration Tool](../../../../supervisely-ecosystem/cvat-to-sly/migration_tool) app from Supervisely Ecosystem.<br>
+\*️⃣ If you want to copy projects directly from CVAT instance you can use fully automated [CVAT to Supervisely Migration Tool](../../../../../supervisely-ecosystem/cvat-to-sly/migration_tool) app from Supervisely Ecosystem.<br>
 
 ## Preparation
 
