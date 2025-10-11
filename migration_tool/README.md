@@ -9,7 +9,7 @@
   <a href="#How-To-Run">How To Run</a>
 </p>
 
-[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](../../../../../supervisely-ecosystem/cvat-to-sly/migration_tool)
+[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervisely.com/apps/supervisely-ecosystem/cvat-to-sly/migration_tool)
 [![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervisely.com/slack)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/cvat-to-sly)
 [![views](https://app.supervisely.com/img/badges/views/supervisely-ecosystem/cvat-to-sly/migration_tool.png)](https://supervisely.com)
@@ -21,7 +21,7 @@
 
 This application allows you to copy multiple projects from CVAT instance to Supervisely instance, you can select which projects should be copied, labels and tags will be converted automatically. You can preview the results in the table, which will show URLs to corresdponding projects in CVAT and Supervisely.<br>
 
-\*️⃣ If you want to upload data, which was already exported from CVAT instance, you can use this [Import CVAT](../../../../../supervisely-ecosystem/cvat-to-sly/import_cvat) app from Supervisely Ecosystem.<br>
+\*️⃣ If you want to upload data, which was already exported from CVAT instance, you can use this [Import CVAT](https://ecosystem.supervisely.com/apps/cvat-to-sly/import_cvat) app from Supervisely Ecosystem.<br>
 
 ## Preparation
 
