@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "name": "CVAT to Supervisely Migration Tool",
   "description": "Convert and copy multiple CVAT projects into Supervisely at once.",
-  "docker_image": "supervisely/base-py-sdk:6.72.125",
+  "docker_image": "supervisely/base-py-sdk:6.73.564",
   "categories": ["images", "videos", "import", "migration"],
   "icon": "https://github.com/supervisely-ecosystem/cvat-to-sly/assets/119248312/ce71514b-72e6-4d1e-947d-90928617c069",
   "icon_cover": true,
