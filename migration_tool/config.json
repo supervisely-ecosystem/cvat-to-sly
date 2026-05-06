@@ -1,5 +1,6 @@
 {
   "type": "app",
+  "instance_version": "6.15.60",
   "version": "2.0.0",
   "name": "CVAT to Supervisely Migration Tool",
   "description": "Convert and copy multiple CVAT projects into Supervisely at once.",
