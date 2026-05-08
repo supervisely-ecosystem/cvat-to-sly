@@ -9,7 +9,7 @@
   "categories": ["images", "videos", "import"],
   "need_gpu": false,
   "community_agent": true,
-  "docker_image": "supervisely/base-py-sdk:6.73.564",
+  "docker_image": "supervisely/cvat-to-sly:6.73.564",
   "instance_version": "6.15.60",
   "entrypoint": "python import_cvat/src/main.py",
   "port": 8000,
