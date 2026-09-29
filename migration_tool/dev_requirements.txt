@@ -1,2 +1,2 @@
-supervisely==6.73.564
+supervisely==6.74.34
 cvat-sdk==2.7.0
